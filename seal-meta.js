@@ -4,7 +4,7 @@
 
   // 名称排版：算字高、横向比例、字距。render 和 nameFit 共用这一份，口径不会跑偏
   //   官方样张：字高 5.1mm、不压窄、字距约 1mm（≈0.2 倍字高）
-  //   默认字高 6.75mm、离内边 0.55mm，字距先保 2mm；名称短时角度按实际占用算。
+  //   默认字高 6.75mm、离内边 0.9mm，字距先保 2.6mm；名称短时角度按实际占用算。
   //   排不下先横向压窄字形（下限 49%），再收字距（下限 1mm），最后才缩字高。
   function nameLayout(o) {
     const chars = Array.from(o.name || '');
@@ -16,7 +16,7 @@
     // （环排角度 250°～270°）与官方样张实测；带中心章名的专用章收到 240°，
     // 否则名称会绕下来压到章名。
     const arcMax = o.arc || 274;
-    const outerGap = o.nameOuterGap != null ? Math.max(0, +o.nameOuterGap) : 0.55;
+    const outerGap = o.nameOuterGap != null ? Math.max(0, +o.nameOuterGap) : 0.9;
     const outer = R - border - outerGap;
     const target = o.nameSize || 6.75;
     // 字宽按宋体实测：字高 size 对应字号 size/0.88。横向比例用 0.66，
@@ -24,7 +24,8 @@
     // 锁死横向比例，字不随弧长变宽。
     const charW = (sz) => sz / 0.88;
     const SX_FIX = 0.66;
-    const GAP_PREF = 2.0;
+    // 字距默认 2mm；页面/服务端可以按版本传 nameGapPref 覆盖，做版式对比时不用改算法
+    const GAP_PREF = o.nameGapPref != null ? Math.max(0, +o.nameGapPref) : 2.6;
     // 字距优先让位给字高：名称长时字距可以一路收到 0，排不下才缩字高。
     const GAP_MIN = 0;
     const SX_MIN = 0.49;

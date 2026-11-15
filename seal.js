@@ -929,7 +929,7 @@
       nameSize: 6.75,
       nameWeight: 400,
       nameStroke: 0,
-      arc: 274,
+      arc: 240,
       starWidth: 14,
       star: true,
       lineSize: 5.8,

@@ -41,7 +41,8 @@
     starOverride: {},
   };
 
-  let lastGenerated = null;
+  // 一次生成出四种可用样式：缓存每张的 blob 和 object URL，选哪张下载哪张
+  let lastSet = null;
   let generating = false;
   let usedMemory = 0;
 
@@ -508,25 +509,24 @@
       return span;
     }));
     const note = $('sizeNote');
-    if (note) note.textContent = `名称字高 6.75\u00A0mm、离内边 0.55\u00A0mm 固定，字距在可用弧长里自动排：先保 2\u00A0mm，排不下再压窄字形、收字距、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
+    if (note) note.textContent = `名称字高 6.75\u00A0mm、离内边 0.9\u00A0mm 固定，字距在可用弧长里自动排：先保 2.6\u00A0mm，排不下再压窄字形、收字距、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
     updateNameState(f);
     updateCodeState(f.code, f.profile);
     updateBilling();
     markStale(f);
   }
 
-  // 表单指纹：用于判断预览是否过期
+  // 表单指纹：用于判断四张图是否过期。模板和质感不在里面，切卡不算改参数
   function buildPayload(f) {
     return {
-      profile: f.profile,
       name: f.name,
-      line1: f.line1,
-      line2: f.line2,
       code: codeOk(f.code) ? f.code : '',
       color: f.color,
       diameter: f.diameter,
-      star: f.star,
-      fresh: f.fresh,
+      stars: {
+        contract: starForProfile('contract') === true,
+        finance: starForProfile('finance') === true
+      },
       seed: state.seed
     };
   }
@@ -572,9 +572,12 @@
     });
   }
 
-  // 合同/财务的样张有两版：带星和不带星，切星标时换图
+  // 合同/财务的样张有两版：带星和不带星，切星标时换图。
+  // 已经换成真实生成结果的卡不再改回样张。
   function syncStarSamples() {
     document.querySelectorAll('.opt-img[data-sample-profile]').forEach((img) => {
+      const opt = img.closest('.opt');
+      if (lastSet && opt && lastSet.items[keyOf(opt)]) return;
       const on = starForProfile(img.dataset.sampleProfile) === true;
       const src = on ? img.dataset.srcOn : img.dataset.srcOff;
       if (src && img.getAttribute('src') !== src) img.src = src;
@@ -585,12 +588,20 @@
     return JSON.stringify(buildPayload(f || readForm()));
   }
 
+  function keyOf(opt) {
+    return `${opt.dataset.preset}-${opt.dataset.look}`;
+  }
+
+  function currentKey() {
+    return `${$('preset').value}-${$('look').value}`;
+  }
+
   function markStale(f) {
-    if (!lastGenerated) return;
-    const stale = currentSig(f) !== lastGenerated.sig;
+    if (!lastSet) return;
+    const stale = currentSig(f) !== lastSet.sig;
     $('preview').classList.toggle('is-stale', stale);
     $('previewStale').hidden = !stale;
-    $('download').disabled = stale;
+    $('download').disabled = stale || !lastSet.items[currentKey()];
   }
 
   function syncFromUrl() {
@@ -680,13 +691,14 @@
     return `${label}-${SealMeta.toSlug(f.name)}-${f.diameter}mm${tag}${ph}.png`;
   }
 
+  // 下载左边大图当前显示的那一张
   function downloadLast() {
-    if (!lastGenerated || !PRESETS[lastGenerated.profile]) return;
+    const item = lastSet && lastSet.items[currentKey()];
+    if (!item) return;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(lastGenerated.blob);
-    a.download = lastGenerated.name;
+    a.href = item.url;
+    a.download = item.name;
     a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
   }
 
   // 公开版打包：只渲染 ENABLED_STYLES 里的四种，禁用的公章/两行章不进来。
@@ -764,13 +776,19 @@
     } finally {
       generating = false;
       btn.textContent = label;
-      one.disabled = !lastGenerated || currentSig(readForm()) !== lastGenerated.sig;
+      one.disabled = !lastSet || currentSig(readForm()) !== lastSet.sig || !lastSet.items[currentKey()];
       gen.disabled = !codeOk($('code').value) || usesLeft() <= 0;
       updateZipState();
     }
   }
 
-  async function applyGenerated(blob, f) {
+  function cardImg(key) {
+    const [preset, look] = key.split('-');
+    const opt = document.querySelector(`#comboGallery .opt[data-preset="${preset}"][data-look="${look}"]`);
+    return opt ? opt.querySelector('img') : null;
+  }
+
+  async function drawPreview(blob) {
     const c = $('preview');
     const g = c.getContext('2d');
     const bmp = await createImageBitmap(blob);
@@ -779,11 +797,44 @@
     g.imageSmoothingQuality = 'high';
     g.drawImage(bmp, 0, 0, c.width, c.height);
     if (bmp.close) bmp.close();
-    lastGenerated = { blob, name: fileName(f), sig: currentSig(f), profile: f.profile };
+  }
+
+  // 把选中那张画到左边大图；过期提示由 markStale 管
+  function showSelected() {
+    const item = lastSet && lastSet.items[currentKey()];
+    if (!item) return;
+    drawPreview(item.blob);
     $('previewEmpty').hidden = true;
+  }
+
+  function clearSet() {
+    if (!lastSet) return;
+    Object.keys(lastSet.items).forEach((key) => {
+      URL.revokeObjectURL(lastSet.items[key].url);
+      const img = cardImg(key);
+      if (img && img.dataset.staticSrc) img.src = img.dataset.staticSrc;
+    });
+    lastSet = null;
+  }
+
+  // 四张可用样式全部换成这次的结果，点哪张看哪张；禁用的四张保持样张
+  async function applySet(items, f) {
+    clearSet();
+    const map = {};
+    for (const item of items) {
+      const url = URL.createObjectURL(item.blob);
+      const img = cardImg(item.key);
+      if (img) {
+        if (!img.dataset.staticSrc) img.dataset.staticSrc = img.getAttribute('src');
+        img.src = url;
+      }
+      map[item.key] = { blob: item.blob, url, name: fileName(item.f) };
+    }
+    lastSet = { items: map, sig: currentSig(f) };
+    $('preview').classList.remove('is-stale');
     $('previewStale').hidden = true;
-    c.classList.remove('is-stale');
     $('download').disabled = false;
+    showSelected();
   }
 
   async function generate() {
@@ -797,18 +848,31 @@
     const btn = $('generate');
     generating = true;
     btn.disabled = true;
-    btn.textContent = '生成中…';
     const started = Date.now();
-    // 先让浏览器画出「生成中…」再进同步渲染，否则长任务期间按钮看着没反应
-    await new Promise((resolve) => setTimeout(resolve, 30));
     try {
-      const canvas = document.createElement('canvas');
-      Seal.render(canvas, renderOpts(f));
-      const blob = await Seal.toPngBlob(canvas, f.diameter);
-      await applyGenerated(blob, f);
+      const items = [];
+      for (let i = 0; i < ENABLED_STYLES.length; i++) {
+        const style = ENABLED_STYLES[i];
+        btn.textContent = `生成中 ${i + 1}/${ENABLED_STYLES.length}…`;
+        // 先让浏览器画出进度再进同步渲染，否则长任务期间按钮看着没反应
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const styleForm = Object.assign({}, f, {
+          profile: style.profile,
+          fresh: style.fresh,
+          star: starForProfile(style.profile),
+          nameSize: PRESETS[style.profile].nameSize,
+          arc: PRESETS[style.profile].arc,
+          texture: PRESETS[style.profile].tex
+        });
+        const canvas = document.createElement('canvas');
+        Seal.render(canvas, renderOpts(styleForm));
+        const blob = await Seal.toPngBlob(canvas, f.diameter);
+        items.push({ key: `${style.profile}-${style.fresh ? 'fresh' : 'clean'}`, blob, f: styleForm });
+      }
+      await applySet(items, f);
       addUse();
       updateBilling();
-      hint(`已生成，用时 ${((Date.now() - started) / 1000).toFixed(1)} 秒；免费剩余 ${usesLeft()} 次`);
+      hint(`已生成 ${items.length} 种样式，用时 ${((Date.now() - started) / 1000).toFixed(1)} 秒；点小图切换，下载选中那张`);
     } catch (err) {
       setState(err.message || '生成失败，请重试');
     } finally {
@@ -829,7 +893,7 @@
   }
 
   function bind() {
-    // 八宫格：一张图同时定模板和质感；样张是静态图，选中后点「生成印章」才出图
+    // 八宫格：一张图同时定模板和质感；生成前是静态样张，生成后四张可用卡全是真实结果
     $('comboGallery').addEventListener('click', (e) => {
       // 小图右上角的星标只管带不带五角星，不切换模板
       const badge = e.target.closest('.star-badge');
@@ -857,6 +921,8 @@
         render();
         persist();
       }
+      // 生成过就把左边大图换成这张的结果；没生成时保持原样
+      showSelected();
     });
 
     ['name', 'line1', 'line2'].forEach((id) => {
