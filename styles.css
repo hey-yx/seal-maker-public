@@ -977,6 +977,7 @@ a:hover { color: var(--accent-hover); }
 .lite-banner a {
   color: var(--accent);
   text-decoration: underline;
+  white-space: nowrap;
 }
 
 /* 生成按钮与计费状态 */
@@ -986,6 +987,12 @@ a:hover { color: var(--accent-hover); }
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
   font-variant-numeric: tabular-nums;
+}
+
+.billing a {
+  color: var(--accent);
+  text-decoration: underline;
+  white-space: nowrap;
 }
 
 /* 预览：生成前是空台，生成后是画布；参数改动时压暗 */

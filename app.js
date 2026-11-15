@@ -441,9 +441,16 @@
   function updateBilling() {
     const el = $('billing');
     if (!el) return;
-    el.textContent = usesLeft() > 0
-      ? `公开版免费剩余 ${usesLeft()} 次 · 次数记在本机浏览器`
-      : '公开版免费次数已用完，去完整版继续';
+    if (usesLeft() > 0) {
+      el.textContent = `公开版免费剩余 ${usesLeft()} 次 · 次数记在本机浏览器`;
+    } else {
+      const link = document.createElement('a');
+      link.href = 'https://hey-yx.com/seal/';
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = '完整版（hey-yx.com/seal）';
+      el.replaceChildren('公开版免费次数已用完，去 ', link, ' 继续');
+    }
     updateZipState();
   }
 
@@ -693,7 +700,7 @@
     if (generating) return;
     if (usesLeft() < ZIP_COST) {
       updateBilling();
-      hint(`免费次数不够，打包 4 张要 ${ZIP_COST} 次`);
+      hint(`免费次数不够，打包 4 张要 ${ZIP_COST} 次；去完整版：https://hey-yx.com/seal/`);
       return;
     }
     const btn = $('downloadAll');
@@ -786,7 +793,7 @@
     if (!f.name) { setState('先填公司名称'); $('name').focus(); return; }
     if (!codeOk(f.code)) { updateCodeState(f.code, f.profile); return; }
     if (generating) return;
-    if (usesLeft() <= 0) { updateBilling(); hint('公开版免费次数已用完，去完整版继续'); return; }
+    if (usesLeft() <= 0) { updateBilling(); hint('公开版免费次数已用完，去完整版：https://hey-yx.com/seal/'); return; }
     const btn = $('generate');
     generating = true;
     btn.disabled = true;
