@@ -599,6 +599,38 @@ a:hover { color: var(--accent-hover); }
 
 .opt-label { display: block; }
 
+/* 完整版样式：仍然展示，但灰掉、不可选；生成和下载都会跳过 */
+.opt:disabled {
+  cursor: not-allowed;
+}
+
+.opt:disabled .opt-img {
+  filter: grayscale(1);
+  opacity: .45;
+}
+
+.opt:disabled .opt-label {
+  color: var(--ink-3);
+}
+
+.styles .opt:disabled:hover {
+  background: var(--surface);
+}
+
+.opt-lock {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  z-index: var(--z-badge);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--ink-3);
+  color: var(--on-accent);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: .02em;
+}
+
 .star-badge {
   position: absolute;
   top: var(--space-1);

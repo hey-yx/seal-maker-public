@@ -8,7 +8,7 @@
 <link rel="icon" href="./favicon.ico?v=2" sizes="32x32">
 <link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=2">
-<link rel="stylesheet" href="./styles.css?v=204">
+<link rel="stylesheet" href="./styles.css?v=205">
 </head>
 <body>
 <a class="skip" href="#workbench">跳到印章生成</a>
@@ -82,6 +82,7 @@
         <button id="generate" type="button" class="btn-primary">生成印章</button>
         <div class="actions-row">
           <button id="download" type="button" class="btn-secondary" disabled>下载 PNG</button>
+          <button id="downloadAll" type="button" class="btn-secondary" disabled title="公开版只打包合同/财务四种样式，共 4 张，扣 4 次">下载全部 ZIP（4 张）</button>
         </div>
       </div>
       <p class="billing" id="billing" aria-live="polite">公开版免费剩余 10 次</p>
@@ -107,11 +108,18 @@
   </section>
       <section id="styles" class="styles" aria-labelledby="styles-title">
         <div class="styles-head">
-          <h2 id="styles-title">四种样式</h2>
-          <p class="lead">公开版提供合同专用章、财务专用章，各两种质感：标准是纯矢量，实盖扫描带飞点、缺墨和残边。点一下选定模板，再点「生成印章」；星标切换带不带五角星。</p>
+          <h2 id="styles-title">八种样式</h2>
+          <p class="lead">四种模板，各两种质感。公开版开放合同专用章、财务专用章各两种；公章和两行专用章在完整版提供，灰色卡片只能看，不能选。点一下可用样式，再点「生成印章」；星标切换带不带五角星。</p>
         </div>
 
       <div class="variants" id="comboGallery" role="group" aria-label="模板与质感">
+        <div class="opt-slot">
+          <button type="button" class="opt" data-preset="standard" data-look="clean" aria-pressed="false" aria-disabled="true" disabled title="公章 · 标准（完整版提供）">
+            <img class="opt-img" src="./assets/samples/standard-clean.png" width="360" height="360" alt="" data-sample-profile="standard" data-sample-look="clean" data-src-off="./assets/samples/standard-clean.png" data-src-on="./assets/samples/standard-clean.png">
+            <span class="opt-label">公章 · 标准</span>
+            <span class="opt-lock">完整版</span>
+          </button>
+        </div>
         <div class="opt-slot">
           <button type="button" class="opt" data-preset="contract" data-look="clean" aria-pressed="false" title="合同专用章 · 标准">
             <img class="opt-img" src="./assets/samples/contract-clean.png" width="360" height="360" alt="" data-sample-profile="contract" data-sample-look="clean" data-src-off="./assets/samples/contract-clean.png" data-src-on="./assets/samples/contract-clean-star.png">
@@ -127,6 +135,20 @@
           <button type="button" class="star-badge" data-star-for="finance" aria-pressed="false" aria-label="财务专用章 · 标准带不带五角星" title="带不带五角星">★</button>
         </div>
         <div class="opt-slot">
+          <button type="button" class="opt" data-preset="twoline" data-look="clean" aria-pressed="false" aria-disabled="true" disabled title="两行专用章 · 标准（完整版提供）">
+            <img class="opt-img" src="./assets/samples/twoline-clean.png" width="360" height="360" alt="" data-sample-profile="twoline" data-sample-look="clean" data-src-off="./assets/samples/twoline-clean.png" data-src-on="./assets/samples/twoline-clean.png">
+            <span class="opt-label">两行专用章 · 标准</span>
+            <span class="opt-lock">完整版</span>
+          </button>
+        </div>
+        <div class="opt-slot">
+          <button type="button" class="opt" data-preset="standard" data-look="fresh" aria-pressed="false" aria-disabled="true" disabled title="公章 · 实盖扫描（完整版提供）">
+            <img class="opt-img" src="./assets/samples/standard-fresh.png" width="360" height="360" alt="" data-sample-profile="standard" data-sample-look="fresh" data-src-off="./assets/samples/standard-fresh.png" data-src-on="./assets/samples/standard-fresh.png">
+            <span class="opt-label">公章 · 实盖扫描</span>
+            <span class="opt-lock">完整版</span>
+          </button>
+        </div>
+        <div class="opt-slot">
           <button type="button" class="opt is-on" data-preset="contract" data-look="fresh" aria-pressed="true" title="合同专用章 · 实盖扫描">
             <img class="opt-img" src="./assets/samples/contract-fresh.png" width="360" height="360" alt="" data-sample-profile="contract" data-sample-look="fresh" data-src-off="./assets/samples/contract-fresh.png" data-src-on="./assets/samples/contract-fresh-star.png">
             <span class="opt-label">合同专用章 · 实盖扫描</span>
@@ -139,6 +161,13 @@
             <span class="opt-label">财务专用章 · 实盖扫描</span>
           </button>
           <button type="button" class="star-badge" data-star-for="finance" aria-pressed="false" aria-label="财务专用章 · 实盖扫描带不带五角星" title="带不带五角星">★</button>
+        </div>
+        <div class="opt-slot">
+          <button type="button" class="opt" data-preset="twoline" data-look="fresh" aria-pressed="false" aria-disabled="true" disabled title="两行专用章 · 实盖扫描（完整版提供）">
+            <img class="opt-img" src="./assets/samples/twoline-fresh.png" width="360" height="360" alt="" data-sample-profile="twoline" data-sample-look="fresh" data-src-off="./assets/samples/twoline-fresh.png" data-src-on="./assets/samples/twoline-fresh.png">
+            <span class="opt-label">两行专用章 · 实盖扫描</span>
+            <span class="opt-lock">完整版</span>
+          </button>
         </div>
 
         <input type="hidden" id="preset" value="contract">
@@ -296,6 +325,7 @@
 <script src="./data/divisions.js?v=1"></script>
 <script src="./seal-meta.js?v=1"></script>
 <script src="./seal.js?v=1"></script>
-<script src="./app.js?v=1"></script>
+<script src="./zip.js?v=1"></script>
+<script src="./app.js?v=3"></script>
 </body>
 </html>

@@ -25,6 +25,14 @@
   const PXMM = 600 / 25.4; // 600 dpi 下每毫米像素；导出尺寸按它算
   const LITE_LIMIT = 10;
   const USED_KEY = 'seal-maker-lite:used';
+  // 公开版开放的四种：合同/财务各标准与实盖。ZIP 只打这四张。
+  const ENABLED_STYLES = [
+    { profile: 'contract', fresh: false, template: '合同专用章', look: '标准' },
+    { profile: 'contract', fresh: true, template: '合同专用章', look: '实盖扫描' },
+    { profile: 'finance', fresh: false, template: '财务专用章', look: '标准' },
+    { profile: 'finance', fresh: true, template: '财务专用章', look: '实盖扫描' }
+  ];
+  const ZIP_COST = ENABLED_STYLES.length;
 
   const state = {
     seed: 7,
@@ -436,12 +444,21 @@
     el.textContent = usesLeft() > 0
       ? `公开版免费剩余 ${usesLeft()} 次 · 次数记在本机浏览器`
       : '公开版免费次数已用完，去完整版继续';
+    updateZipState();
+  }
+
+  // 打包要 4 张，次数不够就禁用；名称和编码也得有效
+  function updateZipState() {
+    const zip = $('downloadAll');
+    if (!zip) return;
+    zip.disabled = generating || usesLeft() < ZIP_COST || !$('name').value.trim() || !codeOk($('code').value) || !PRESETS[$('preset').value];
   }
 
   function updateCodeState(code, profile) {
     const ok = codeOk(code);
     const gen = $('generate');
     if (gen) gen.disabled = !ok || generating || usesLeft() <= 0;
+    updateZipState();
     const regen = $('regenCode');
     if (regen) regen.disabled = false;
     const note = $('codeAutoNote');
@@ -540,9 +557,11 @@
     const preset = $('preset').value;
     const look = $('look').value;
     document.querySelectorAll('#comboGallery .opt').forEach((btn) => {
-      const on = btn.dataset.preset === preset && btn.dataset.look === look;
+      const enabled = !!PRESETS[btn.dataset.preset];
+      const on = enabled && btn.dataset.preset === preset && btn.dataset.look === look;
       btn.classList.toggle('is-on', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
     });
   }
 
@@ -632,6 +651,7 @@
 
   function applyPreset() {
     const profile = PRESETS[$('preset').value] ? $('preset').value : 'contract';
+    $('preset').value = profile;
     const p = PRESETS[profile];
     const fresh = $('look').value === 'fresh';
     $('line1').value = p.line1;
@@ -654,12 +674,93 @@
   }
 
   function downloadLast() {
-    if (!lastGenerated) return;
+    if (!lastGenerated || !PRESETS[lastGenerated.profile]) return;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(lastGenerated.blob);
     a.download = lastGenerated.name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  }
+
+  // 公开版打包：只渲染 ENABLED_STYLES 里的四种，禁用的公章/两行章不进来。
+  // 每张按当前名称、编码、颜色、直径和星标渲染，包内附配置 JSON。
+  async function downloadAll() {
+    const requested = $('preset').value;
+    if (!PRESETS[requested]) { setState('这个样式在完整版提供'); return; }
+    const f = readForm();
+    if (!f.name) { setState('先填公司名称'); $('name').focus(); return; }
+    if (!codeOk(f.code)) { updateCodeState(f.code, f.profile); return; }
+    if (generating) return;
+    if (usesLeft() < ZIP_COST) {
+      updateBilling();
+      hint(`免费次数不够，打包 4 张要 ${ZIP_COST} 次`);
+      return;
+    }
+    const btn = $('downloadAll');
+    const one = $('download');
+    const gen = $('generate');
+    const label = btn.textContent;
+    generating = true;
+    btn.disabled = true;
+    one.disabled = true;
+    gen.disabled = true;
+    const files = [];
+    const sheets = [];
+    try {
+      for (let i = 0; i < ENABLED_STYLES.length; i++) {
+        const style = ENABLED_STYLES[i];
+        btn.textContent = `生成中 ${i + 1}/${ENABLED_STYLES.length}…`;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const opts = renderOpts(Object.assign({}, f, {
+          profile: style.profile,
+          fresh: style.fresh,
+          star: starForProfile(style.profile),
+          nameSize: PRESETS[style.profile].nameSize,
+          arc: PRESETS[style.profile].arc,
+          texture: PRESETS[style.profile].tex
+        }));
+        const canvas = document.createElement('canvas');
+        Seal.render(canvas, opts);
+        const blob = await Seal.toPngBlob(canvas, f.diameter);
+        const name = `${style.template}-${SealMeta.toSlug(f.name)}-${f.diameter}mm-${style.look}.png`;
+        files.push({ name, bytes: new Uint8Array(await blob.arrayBuffer()) });
+        sheets.push({
+          文件: name,
+          模板: style.template,
+          质感: style.look,
+          五角星: opts.star ? '有' : '无'
+        });
+      }
+      const outPx = Math.round(f.diameter * PXMM);
+      const config = {
+        公司名称: f.name,
+        印章编码: f.code,
+        直径: `${f.diameter} mm`,
+        颜色: f.color,
+        导出: `${outPx} × ${outPx} px · 600 dpi`,
+        说明: '公开版只包含合同专用章和财务专用章，标准与实盖扫描各一张。',
+        生成时间: new Date().toLocaleString('zh-CN', { hour12: false }),
+        文件: sheets
+      };
+      files.push({ name: '配置.json', bytes: new TextEncoder().encode(JSON.stringify(config, null, 2)) });
+      const zip = SealZip.build(files);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(zip);
+      a.download = `印章-${SealMeta.toSlug(f.name)}-${f.diameter}mm.zip`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+      writeUsed(Math.min(LITE_LIMIT, readUsed() + ZIP_COST));
+      updateBilling();
+      hint(`已打包 4 张，扣 ${ZIP_COST} 次，剩余 ${usesLeft()} 次`);
+    } catch (err) {
+      setState(err.message || '打包失败，请重试');
+    } finally {
+      generating = false;
+      btn.textContent = label;
+      one.disabled = !lastGenerated || currentSig(readForm()) !== lastGenerated.sig;
+      gen.disabled = !codeOk($('code').value) || usesLeft() <= 0;
+      updateZipState();
+    }
   }
 
   async function applyGenerated(blob, f) {
@@ -671,7 +772,7 @@
     g.imageSmoothingQuality = 'high';
     g.drawImage(bmp, 0, 0, c.width, c.height);
     if (bmp.close) bmp.close();
-    lastGenerated = { blob, name: fileName(f), sig: currentSig(f) };
+    lastGenerated = { blob, name: fileName(f), sig: currentSig(f), profile: f.profile };
     $('previewEmpty').hidden = true;
     $('previewStale').hidden = true;
     c.classList.remove('is-stale');
@@ -679,6 +780,8 @@
   }
 
   async function generate() {
+    const requested = $('preset').value;
+    if (!PRESETS[requested]) { setState('这个样式在完整版提供'); return; }
     const f = readForm();
     if (!f.name) { setState('先填公司名称'); $('name').focus(); return; }
     if (!codeOk(f.code)) { updateCodeState(f.code, f.profile); return; }
@@ -705,6 +808,7 @@
       generating = false;
       btn.textContent = '生成印章';
       btn.disabled = !codeOk($('code').value) || usesLeft() <= 0;
+      updateZipState();
     }
   }
 
@@ -733,7 +837,7 @@
         return;
       }
       const btn = e.target.closest('.opt');
-      if (!btn) return;
+      if (!btn || btn.disabled || !PRESETS[btn.dataset.preset]) return;
       const presetChanged = $('preset').value !== btn.dataset.preset;
       const lookChanged = $('look').value !== btn.dataset.look;
       if (!presetChanged && !lookChanged) return;
@@ -839,6 +943,7 @@
 
     $('generate').addEventListener('click', generate);
     $('download').addEventListener('click', downloadLast);
+    $('downloadAll').addEventListener('click', downloadAll);
   }
 
   restore();
