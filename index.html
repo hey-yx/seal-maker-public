@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>标准印章生成器 · 42 / 40 mm 公司印章 PNG</title>
-<meta name="description" content="在浏览器里生成公章、合同专用章、财务专用章、两行专用章图像，42 mm 或 40 mm，600 dpi 透明 PNG。">
+<title>标准印章生成器（公开版） · 合同 / 财务专用章</title>
+<meta name="description" content="在线生成合同专用章、财务专用章图像，42 mm 或 40 mm，600 dpi 透明 PNG。公开版免费 10 次，完整版解锁公章、两行专用章等全部八种样式。">
 <link rel="icon" href="./favicon.ico?v=2" sizes="32x32">
 <link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=2">
@@ -17,7 +17,7 @@
   <div class="head-inner">
     <div class="head-brand">
       <h1 class="brand"><a href="#workbench"><img class="brand-mark" src="./favicon.svg" width="28" height="28" alt="">标准印章生成器</a></h1>
-      <p class="head-note">公章 · 合同专用章 · 财务专用章 · 两行专用章</p>
+      <p class="head-note">合同专用章 · 财务专用章 · 公开版</p>
     </div>
     <nav class="head-nav" aria-label="页面导航">
       <a href="#reference">规格与来源</a>
@@ -30,6 +30,7 @@
     <h2 id="workbench-title" class="sr-only">印章参数与预览</h2>
 
     <form class="controls" id="sealForm" autocomplete="off">
+      <p class="lite-banner">公开版提供合同专用章和财务专用章，免费 10 次，次数记在本机浏览器。需要公章、两行专用章等全部八种样式，去<a href="https://hey-yx.com/seal/" target="_blank" rel="noopener">完整版</a>。</p>
       <div class="field">
         <label for="name">公司名称</label>
         <input id="name" type="text" placeholder="营业执照上的公司名称" autocomplete="off" aria-describedby="namePasteHint nameHint">
@@ -55,7 +56,7 @@
 
       <div class="field" id="twoLineWrap" hidden>
         <label for="line1">星下第一行</label>
-        <input id="line1" type="text" value="" autocomplete="off">
+        <input id="line1" type="text" value="合同专用章" autocomplete="off">
         <label for="line2" class="label-gap">星下第二行</label>
         <input id="line2" type="text" value="" autocomplete="off">
       </div>
@@ -78,12 +79,12 @@
       </div>
 
       <div class="actions">
-        <button id="generate" type="button" class="btn-primary" disabled title="此仓库只含界面，不含生成服务">生成印章</button>
+        <button id="generate" type="button" class="btn-primary">生成印章</button>
         <div class="actions-row">
           <button id="download" type="button" class="btn-secondary" disabled>下载 PNG</button>
         </div>
       </div>
-      <p class="billing" id="billing" aria-live="polite">界面预览：此仓库不含生成服务，按钮不会出图。</p>
+      <p class="billing" id="billing" aria-live="polite">公开版免费剩余 10 次</p>
       <p class="legal">生成的是印章图像，不是公安备案的合法电子印章。名称、编码要和营业执照、备案印模一致；正式对外文件请使用备案章或合规电子签章平台。</p>
     </form>
 
@@ -93,8 +94,8 @@
         <div class="preview-canvas-wrap">
           <canvas id="preview" width="720" height="720" aria-hidden="true"></canvas>
           <div class="preview-empty" id="previewEmpty">
-            <p class="preview-empty-title">界面预览</p>
-            <p class="preview-empty-note">完整版见 hey-yx.com/seal，此仓库不含生成服务。</p>
+            <p class="preview-empty-title">点「生成印章」出图</p>
+            <p class="preview-empty-note">每次生成消耗 1 次；重复下载同一张不扣次数。</p>
           </div>
           <span class="preview-stale" id="previewStale" hidden>参数已改，点「生成印章」重新出图</span>
         </div>
@@ -106,17 +107,11 @@
   </section>
       <section id="styles" class="styles" aria-labelledby="styles-title">
         <div class="styles-head">
-          <h2 id="styles-title">八种样式</h2>
-          <p class="lead">四种模板，各两种质感：标准是纯矢量，实盖扫描带飞点、缺墨和残边。下面是示例章，点一下选定模板；此仓库为界面预览，不生成图像。</p>
+          <h2 id="styles-title">四种样式</h2>
+          <p class="lead">公开版提供合同专用章、财务专用章，各两种质感：标准是纯矢量，实盖扫描带飞点、缺墨和残边。点一下选定模板，再点「生成印章」；星标切换带不带五角星。</p>
         </div>
 
       <div class="variants" id="comboGallery" role="group" aria-label="模板与质感">
-        <div class="opt-slot">
-          <button type="button" class="opt" data-preset="standard" data-look="clean" aria-pressed="false" title="公章 · 标准">
-            <img class="opt-img" src="./assets/samples/standard-clean.png" width="360" height="360" alt="">
-            <span class="opt-label">公章 · 标准</span>
-          </button>
-        </div>
         <div class="opt-slot">
           <button type="button" class="opt" data-preset="contract" data-look="clean" aria-pressed="false" title="合同专用章 · 标准">
             <img class="opt-img" src="./assets/samples/contract-clean.png" width="360" height="360" alt="" data-sample-profile="contract" data-sample-look="clean" data-src-off="./assets/samples/contract-clean.png" data-src-on="./assets/samples/contract-clean-star.png">
@@ -132,20 +127,7 @@
           <button type="button" class="star-badge" data-star-for="finance" aria-pressed="false" aria-label="财务专用章 · 标准带不带五角星" title="带不带五角星">★</button>
         </div>
         <div class="opt-slot">
-          <button type="button" class="opt" data-preset="twoline" data-look="clean" aria-pressed="false" title="两行专用章 · 标准">
-            <img class="opt-img" src="./assets/samples/twoline-clean.png" width="360" height="360" alt="">
-            <span class="opt-label">两行专用章 · 标准</span>
-          </button>
-        </div>
-
-        <div class="opt-slot">
-          <button type="button" class="opt is-on" data-preset="standard" data-look="fresh" aria-pressed="true" title="公章 · 实盖扫描">
-            <img class="opt-img" src="./assets/samples/standard-fresh.png" width="360" height="360" alt="">
-            <span class="opt-label">公章 · 实盖扫描</span>
-          </button>
-        </div>
-        <div class="opt-slot">
-          <button type="button" class="opt" data-preset="contract" data-look="fresh" aria-pressed="false" title="合同专用章 · 实盖扫描">
+          <button type="button" class="opt is-on" data-preset="contract" data-look="fresh" aria-pressed="true" title="合同专用章 · 实盖扫描">
             <img class="opt-img" src="./assets/samples/contract-fresh.png" width="360" height="360" alt="" data-sample-profile="contract" data-sample-look="fresh" data-src-off="./assets/samples/contract-fresh.png" data-src-on="./assets/samples/contract-fresh-star.png">
             <span class="opt-label">合同专用章 · 实盖扫描</span>
           </button>
@@ -158,14 +140,8 @@
           </button>
           <button type="button" class="star-badge" data-star-for="finance" aria-pressed="false" aria-label="财务专用章 · 实盖扫描带不带五角星" title="带不带五角星">★</button>
         </div>
-        <div class="opt-slot">
-          <button type="button" class="opt" data-preset="twoline" data-look="fresh" aria-pressed="false" title="两行专用章 · 实盖扫描">
-            <img class="opt-img" src="./assets/samples/twoline-fresh.png" width="360" height="360" alt="">
-            <span class="opt-label">两行专用章 · 实盖扫描</span>
-          </button>
-        </div>
 
-        <input type="hidden" id="preset" value="standard">
+        <input type="hidden" id="preset" value="contract">
         <input type="hidden" id="look" value="fresh">
       </div>
       </section>
@@ -309,35 +285,17 @@
   </div>
 </section>
 
-<dialog id="payDialog" class="pay-dialog" aria-labelledby="payTitle">
-  <div class="pay-head">
-    <h2 id="payTitle">购买生成次数</h2>
-    <button type="button" class="pay-close" id="payClose" aria-label="关闭">×</button>
-  </div>
-  <p class="pay-price"><strong>¥1.99</strong><span> / 10 次生成</span></p>
-  <p class="pay-method-hint" id="payMethodHint"></p>
-  <div class="pay-body">
-    <div class="pay-qr" id="payQrBox" hidden><img id="payQr" width="200" height="200" alt="微信支付二维码"></div>
-    <p class="pay-status" id="payStatus">选择支付方式后点下面按钮。</p>
-    <button type="button" class="btn-primary" id="payCreate">生成微信支付二维码</button>
-    <p class="pay-issued" id="payIssued" hidden></p>
-  </div>
-  <hr class="pay-rule">
-  <form class="pay-redeem" id="redeemForm" autocomplete="off">
-    <label for="redeemCode">已有卡密</label>
-    <div class="code-row">
-      <input id="redeemCode" type="text" placeholder="SEAL-XXXXX-XXXXX" autocomplete="off" spellcheck="false">
-      <button type="submit" class="btn-small">兑换</button>
-    </div>
-    <p class="hint" id="redeemHint" role="status" aria-live="polite" hidden></p>
-  </form>
-  <p class="pay-note">卡密 10 次用完为止，不绑定设备；同一张图重复下载不扣次数。</p>
-</dialog>
+
 
 <footer class="site-foot">
   <div class="foot-inner">
-    <p>标准印章生成器 · 600 dpi 透明 PNG · 生成需联网，服务器不保存名称与编码 · 图像不是备案的合法电子印章</p>
+    <p>标准印章生成器（公开版） · 600 dpi 透明 PNG · 生成在浏览器本地完成，不上传名称与编码 · 图像不是备案的合法电子印章</p>
   </div>
 </footer>
+
+<script src="./data/divisions.js?v=1"></script>
+<script src="./seal-meta.js?v=1"></script>
+<script src="./seal.js?v=1"></script>
+<script src="./app.js?v=1"></script>
 </body>
 </html>

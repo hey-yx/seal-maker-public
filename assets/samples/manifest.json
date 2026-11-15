@@ -1,17 +1,5 @@
 [
   {
-    "name": "standard-clean.png",
-    "profile": "standard",
-    "fresh": false,
-    "star": false
-  },
-  {
-    "name": "standard-fresh.png",
-    "profile": "standard",
-    "fresh": true,
-    "star": false
-  },
-  {
     "name": "contract-clean.png",
     "profile": "contract",
     "fresh": false,
@@ -58,17 +46,5 @@
     "profile": "finance",
     "fresh": true,
     "star": true
-  },
-  {
-    "name": "twoline-clean.png",
-    "profile": "twoline",
-    "fresh": false,
-    "star": false
-  },
-  {
-    "name": "twoline-fresh.png",
-    "profile": "twoline",
-    "fresh": true,
-    "star": false
   }
 ]
