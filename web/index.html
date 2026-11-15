@@ -78,13 +78,12 @@
       </div>
 
       <div class="actions">
-        <button id="generate" type="button" class="btn-primary">生成印章</button>
+        <button id="generate" type="button" class="btn-primary" disabled title="此仓库只含界面，不含生成服务">生成印章</button>
         <div class="actions-row">
           <button id="download" type="button" class="btn-secondary" disabled>下载 PNG</button>
-          <button type="button" class="btn-quiet js-open-pay">购买次数</button>
         </div>
       </div>
-      <p class="billing" id="billing" aria-live="polite">正在读取剩余次数…</p>
+      <p class="billing" id="billing" aria-live="polite">界面预览：此仓库不含生成服务，按钮不会出图。</p>
       <p class="legal">生成的是印章图像，不是公安备案的合法电子印章。名称、编码要和营业执照、备案印模一致；正式对外文件请使用备案章或合规电子签章平台。</p>
     </form>
 
@@ -94,8 +93,8 @@
         <div class="preview-canvas-wrap">
           <canvas id="preview" width="720" height="720" aria-hidden="true"></canvas>
           <div class="preview-empty" id="previewEmpty">
-            <p class="preview-empty-title">点「生成印章」出图</p>
-            <p class="preview-empty-note">每次生成消耗 1 次；重复下载同一张不扣次数。</p>
+            <p class="preview-empty-title">界面预览</p>
+            <p class="preview-empty-note">完整版见 hey-yx.com/seal，此仓库不含生成服务。</p>
           </div>
           <span class="preview-stale" id="previewStale" hidden>参数已改，点「生成印章」重新出图</span>
         </div>
@@ -108,7 +107,7 @@
       <section id="styles" class="styles" aria-labelledby="styles-title">
         <div class="styles-head">
           <h2 id="styles-title">八种样式</h2>
-          <p class="lead">四种模板，各两种质感：标准是纯矢量，实盖扫描带飞点、缺墨和残边。下面是示例章，点一下选定模板，再点「生成印章」按你的名称出图；星标切换合同、财务章的五角星。</p>
+          <p class="lead">四种模板，各两种质感：标准是纯矢量，实盖扫描带飞点、缺墨和残边。下面是示例章，点一下选定模板；此仓库为界面预览，不生成图像。</p>
         </div>
 
       <div class="variants" id="comboGallery" role="group" aria-label="模板与质感">
