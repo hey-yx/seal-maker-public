@@ -478,12 +478,6 @@ img, svg { display: block; max-width: 100%; }
   color: var(--s-ink);
 }
 
-.legal {
-  font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-  color: var(--s-label);
-}
-
 /* 右侧画板与八种样式 */
 .stage {
   display: flex;

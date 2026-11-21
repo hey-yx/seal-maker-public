@@ -39,7 +39,7 @@
         <span class="panel-spec">42 / 40 mm · 公开版</span>
       </div>
 
-      <p class="lite-banner">公开版可用合同专用章和财务专用章的四种样式，次数记在本机浏览器。需要公章、两行专用章等全部八种，去<a href="https://hey-yx.com/ohmystamp/1/" target="_blank" rel="noopener">完整版</a>。</p>
+      <p class="lite-banner">公开版免费不限次数，可在浏览器生成合同专用章和财务专用章的四种样式。需要公章、两行专用章等全部八种，去<a href="https://hey-yx.com/ohmystamp/1/" target="_blank" rel="noopener">完整版</a>。</p>
 
       <div class="field">
         <label for="name">公司名称</label>
@@ -90,13 +90,12 @@
 
       <div class="actions">
         <button id="generate" type="button" class="btn-primary">生成印章</button>
-        <div class="actions-row actions-row--equal">
+        <div class="actions-row">
           <button id="download" type="button" class="btn-secondary" disabled>下载 PNG</button>
-          <button id="downloadAll" type="button" class="btn-secondary" disabled title="公开版只打包合同/财务四种样式，共 4 张，扣 4 次">打包 ZIP（4 张）</button>
+          <a class="btn-quiet" href="https://hey-yx.com/ohmystamp/1/" target="_blank" rel="noopener noreferrer">体验完整版</a>
         </div>
       </div>
-      <p class="billing" id="billing" aria-live="polite">公开版免费剩余 10 次</p>
-      <p class="legal">生成的是印章图像，不是公安备案的合法电子印章。名称和编码要和营业执照、备案印模一致。正式对外文件请用备案章或合规电子签章平台。</p>
+      <p class="billing" id="billing">纯浏览器本地渲染 · 免费不限次数，数据不上传</p>
     </form>
 
     <section class="stage" aria-labelledby="preview-title">
@@ -111,7 +110,7 @@
           <canvas id="preview" width="720" height="720" aria-hidden="true"></canvas>
           <div class="preview-empty" id="previewEmpty">
             <p class="preview-empty-title">点「生成印章」，四种可用样式一起出图</p>
-            <p class="preview-empty-note">生成一次消耗 1 次。点缩略图切换，下载选中的那张。</p>
+            <p class="preview-empty-note">点缩略图切换，一次下载选中的那张 PNG。</p>
           </div>
         </div>
       </figure>
@@ -352,7 +351,6 @@
 <script src="./data/divisions.js?v=1"></script>
 <script src="./seal-meta.js?v=10"></script>
 <script src="./seal.js?v=9"></script>
-<script src="./zip.js?v=1"></script>
-<script src="./app.js?v=16"></script>
+<script src="./app.js?v=17"></script>
 </body>
 </html>

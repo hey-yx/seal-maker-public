@@ -23,16 +23,13 @@
   };
 
   const PXMM = 600 / 25.4; // 600 dpi 下每毫米像素；导出尺寸按它算
-  const LITE_LIMIT = 10;
-  const USED_KEY = 'seal-maker-lite:used';
-  // 公开版开放的四种：合同/财务各标准与实盖。ZIP 只打这四张。
+  // 公开版开放的四种：合同/财务各标准与实盖，免费不限次数，单张下载所选。
   const ENABLED_STYLES = [
     { profile: 'contract', fresh: false, template: '合同专用章', look: '标准' },
     { profile: 'contract', fresh: true, template: '合同专用章', look: '实盖扫描' },
     { profile: 'finance', fresh: false, template: '财务专用章', look: '标准' },
     { profile: 'finance', fresh: true, template: '财务专用章', look: '实盖扫描' }
   ];
-  const ZIP_COST = ENABLED_STYLES.length;
 
   const state = {
     seed: 7,
@@ -44,7 +41,6 @@
   // 一次生成出四种可用样式：缓存每张的 blob 和 object URL，选哪张下载哪张
   let lastSet = null;
   let generating = false;
-  let usedMemory = 0;
 
 
   const params = new URLSearchParams(location.search);
@@ -419,54 +415,10 @@
     el.textContent = `${m.chars} 字，字高 ${m.size}\u00A0mm${stdSize}，字形宽度 ${Math.round(m.sx * 100)}%，字距 ${m.gapMm}\u00A0mm，${arcTail}`;
   }
 
-  function readUsed() {
-    try {
-      const n = parseInt(localStorage.getItem(USED_KEY), 10);
-      return Number.isFinite(n) && n > 0 ? n : 0;
-    } catch (e) { return usedMemory; }
-  }
-
-  function writeUsed(n) {
-    usedMemory = n;
-    try { localStorage.setItem(USED_KEY, String(n)); } catch (e) { /* 隐私模式：本次会话内计数 */ }
-  }
-
-  function usesLeft() {
-    return Math.max(0, LITE_LIMIT - readUsed());
-  }
-
-  function addUse() {
-    writeUsed(Math.min(LITE_LIMIT, readUsed() + 1));
-  }
-
-  function updateBilling() {
-    const el = $('billing');
-    if (!el) return;
-    if (usesLeft() > 0) {
-      el.textContent = `公开版免费剩余 ${usesLeft()} 次 · 次数记在本机浏览器`;
-    } else {
-      const link = document.createElement('a');
-      link.href = 'https://hey-yx.com/ohmystamp/1/';
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.textContent = '完整版（hey-yx.com/ohmystamp/1）';
-      el.replaceChildren('公开版免费次数已用完，去 ', link, ' 继续');
-    }
-    updateZipState();
-  }
-
-  // 打包要 4 张，次数不够就禁用；名称和编码也得有效
-  function updateZipState() {
-    const zip = $('downloadAll');
-    if (!zip) return;
-    zip.disabled = generating || usesLeft() < ZIP_COST || !$('name').value.trim() || !codeOk($('code').value) || !PRESETS[$('preset').value];
-  }
-
   function updateCodeState(code, profile) {
     const ok = codeOk(code);
     const gen = $('generate');
-    if (gen) gen.disabled = !ok || generating || usesLeft() <= 0;
-    updateZipState();
+    if (gen) gen.disabled = !ok || generating;
     const regen = $('regenCode');
     if (regen) regen.disabled = false;
     const note = $('codeAutoNote');
@@ -512,7 +464,6 @@
     if (note) note.textContent = `名称字高 6.75\u00A0mm、离内边 1.1\u00A0mm 固定；合同章和财务章中心有章名，名称最多 240°，字距按名称长度在 1.35～2.6\u00A0mm 之间调节。括号按墨宽排版，仍放不下才压窄字形、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
     updateNameState(f);
     updateCodeState(f.code, f.profile);
-    updateBilling();
     markStale(f);
   }
 
@@ -701,87 +652,6 @@
     a.click();
   }
 
-  // 公开版打包：只渲染 ENABLED_STYLES 里的四种，禁用的公章/两行章不进来。
-  // 每张按当前名称、编码、颜色、直径和星标渲染，包内附配置 JSON。
-  async function downloadAll() {
-    const requested = $('preset').value;
-    if (!PRESETS[requested]) { setState('这个样式在完整版提供'); return; }
-    const f = readForm();
-    if (!f.name) { setState('先填公司名称'); $('name').focus(); return; }
-    if (!codeOk(f.code)) { updateCodeState(f.code, f.profile); return; }
-    if (generating) return;
-    if (usesLeft() < ZIP_COST) {
-      updateBilling();
-      hint(`免费次数不够，打包 4 张要 ${ZIP_COST} 次；去完整版：https://hey-yx.com/ohmystamp/1/`);
-      return;
-    }
-    const btn = $('downloadAll');
-    const one = $('download');
-    const gen = $('generate');
-    const label = btn.textContent;
-    generating = true;
-    btn.disabled = true;
-    one.disabled = true;
-    gen.disabled = true;
-    const files = [];
-    const sheets = [];
-    try {
-      for (let i = 0; i < ENABLED_STYLES.length; i++) {
-        const style = ENABLED_STYLES[i];
-        btn.textContent = `生成中 ${i + 1}/${ENABLED_STYLES.length}…`;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        const opts = renderOpts(Object.assign({}, f, {
-          profile: style.profile,
-          fresh: style.fresh,
-          star: starForProfile(style.profile),
-          nameSize: PRESETS[style.profile].nameSize,
-          arc: PRESETS[style.profile].arc,
-          texture: PRESETS[style.profile].tex
-        }));
-        const canvas = document.createElement('canvas');
-        Seal.render(canvas, opts);
-        const blob = await Seal.toPngBlob(canvas, f.diameter);
-        const name = `${style.template}-${SealMeta.toSlug(f.name)}-${f.diameter}mm-${style.look}.png`;
-        files.push({ name, bytes: new Uint8Array(await blob.arrayBuffer()) });
-        sheets.push({
-          文件: name,
-          模板: style.template,
-          质感: style.look,
-          五角星: opts.star ? '有' : '无'
-        });
-      }
-      const outPx = Math.round(f.diameter * PXMM);
-      const config = {
-        公司名称: f.name,
-        印章编码: f.code,
-        直径: `${f.diameter} mm`,
-        颜色: f.color,
-        导出: `${outPx} × ${outPx} px · 600 dpi`,
-        说明: '公开版只包含合同专用章和财务专用章，标准与实盖扫描各一张。',
-        生成时间: new Date().toLocaleString('zh-CN', { hour12: false }),
-        文件: sheets
-      };
-      files.push({ name: '配置.json', bytes: new TextEncoder().encode(JSON.stringify(config, null, 2)) });
-      const zip = SealZip.build(files);
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(zip);
-      a.download = `印章-${SealMeta.toSlug(f.name)}-${f.diameter}mm.zip`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      writeUsed(Math.min(LITE_LIMIT, readUsed() + ZIP_COST));
-      updateBilling();
-      hint(`已打包 4 张，扣 ${ZIP_COST} 次，剩余 ${usesLeft()} 次`);
-    } catch (err) {
-      setState(err.message || '打包失败，请重试');
-    } finally {
-      generating = false;
-      btn.textContent = label;
-      one.disabled = !lastSet || currentSig(readForm()) !== lastSet.sig || !lastSet.items[currentKey()];
-      gen.disabled = !codeOk($('code').value) || usesLeft() <= 0;
-      updateZipState();
-    }
-  }
-
   function cardImg(key) {
     const [preset, look] = key.split('-');
     const opt = document.querySelector(`#comboGallery .opt[data-preset="${preset}"][data-look="${look}"]`);
@@ -867,7 +737,6 @@
     if (!f.name) { setState('先填公司名称'); $('name').focus(); return; }
     if (!codeOk(f.code)) { updateCodeState(f.code, f.profile); return; }
     if (generating) return;
-    if (usesLeft() <= 0) { updateBilling(); hint('公开版免费次数已用完，去完整版：https://hey-yx.com/ohmystamp/1/'); return; }
     const btn = $('generate');
     generating = true;
     btn.disabled = true;
@@ -893,16 +762,13 @@
         items.push({ key: `${style.profile}-${style.fresh ? 'fresh' : 'clean'}`, blob, f: styleForm });
       }
       await applySet(items, f);
-      addUse();
-      updateBilling();
       hint(`已生成 ${items.length} 种样式，用时 ${((Date.now() - started) / 1000).toFixed(1)} 秒；点小图切换，下载选中那张`);
     } catch (err) {
       setState(err.message || '生成失败，请重试');
     } finally {
       generating = false;
       btn.textContent = '生成印章';
-      btn.disabled = !codeOk($('code').value) || usesLeft() <= 0;
-      updateZipState();
+      btn.disabled = !codeOk($('code').value);
     }
   }
 
@@ -1040,7 +906,6 @@
 
     $('generate').addEventListener('click', generate);
     $('download').addEventListener('click', downloadLast);
-    $('downloadAll').addEventListener('click', downloadAll);
   }
 
   restore();
