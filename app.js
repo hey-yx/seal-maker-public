@@ -208,7 +208,7 @@
           return;
         }
         const why = codeSource === 'memory' ? '按企业名带出的编码' : '手填的编码';
-        hint(`${why}没有覆盖；要按${src}里的${hit.name}（${prefix}）重拼请点「换号」`);
+        hint(`${why}没有覆盖；要按${src}里的${hit.name}（${prefix}）重拼请点「随机生成」`);
         return;
       }
       const total = now.length === 14 ? 14 : 13;
@@ -446,10 +446,10 @@
       el.textContent = `公开版免费剩余 ${usesLeft()} 次 · 次数记在本机浏览器`;
     } else {
       const link = document.createElement('a');
-      link.href = 'https://hey-yx.com/seal/';
+      link.href = 'https://hey-yx.com/ohmystamp/1/';
       link.target = '_blank';
       link.rel = 'noopener';
-      link.textContent = '完整版（hey-yx.com/seal）';
+      link.textContent = '完整版（hey-yx.com/ohmystamp/1）';
       el.replaceChildren('公开版免费次数已用完，去 ', link, ' 继续');
     }
     updateZipState();
@@ -509,7 +509,7 @@
       return span;
     }));
     const note = $('sizeNote');
-    if (note) note.textContent = `名称字高 6.75\u00A0mm、离内边 0.9\u00A0mm 固定，字距在可用弧长里自动排：先保 2.6\u00A0mm，排不下再压窄字形、收字距、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
+    if (note) note.textContent = `名称字高 6.75\u00A0mm、离内边 1.1\u00A0mm 固定；合同章和财务章中心有章名，名称最多 240°，字距按名称长度在 1.35～2.6\u00A0mm 之间调节。括号按墨宽排版，仍放不下才压窄字形、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
     updateNameState(f);
     updateCodeState(f.code, f.profile);
     updateBilling();
@@ -712,7 +712,7 @@
     if (generating) return;
     if (usesLeft() < ZIP_COST) {
       updateBilling();
-      hint(`免费次数不够，打包 4 张要 ${ZIP_COST} 次；去完整版：https://hey-yx.com/seal/`);
+      hint(`免费次数不够，打包 4 张要 ${ZIP_COST} 次；去完整版：https://hey-yx.com/ohmystamp/1/`);
       return;
     }
     const btn = $('downloadAll');
@@ -844,7 +844,7 @@
     if (!f.name) { setState('先填公司名称'); $('name').focus(); return; }
     if (!codeOk(f.code)) { updateCodeState(f.code, f.profile); return; }
     if (generating) return;
-    if (usesLeft() <= 0) { updateBilling(); hint('公开版免费次数已用完，去完整版：https://hey-yx.com/seal/'); return; }
+    if (usesLeft() <= 0) { updateBilling(); hint('公开版免费次数已用完，去完整版：https://hey-yx.com/ohmystamp/1/'); return; }
     const btn = $('generate');
     generating = true;
     btn.disabled = true;
@@ -995,7 +995,7 @@
         if (!codeOk($('code').value)) {
           updateCodeState($('code').value, $('preset').value);
         } else {
-          hint('已识别企业名；编码栏是手填值，没有覆盖，要占位号请点「换号」');
+          hint('已识别企业名；编码栏是手填值，没有覆盖，要占位号请点「随机生成」');
         }
       } else {
         hint(got.address ? '已识别企业名和地址，先按地址里的区县拼占位号' : '已识别企业名，没找到 13 或 14 位编码，先按行政区拼占位号');

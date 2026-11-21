@@ -3,84 +3,72 @@
     "name": "standard-clean.png",
     "profile": "standard",
     "fresh": false,
-    "star": false,
-    "enabled": false
+    "star": false
   },
   {
     "name": "standard-fresh.png",
     "profile": "standard",
     "fresh": true,
-    "star": false,
-    "enabled": false
+    "star": false
   },
   {
     "name": "contract-clean.png",
     "profile": "contract",
     "fresh": false,
-    "star": false,
-    "enabled": true
+    "star": false
   },
   {
     "name": "contract-clean-star.png",
     "profile": "contract",
     "fresh": false,
-    "star": true,
-    "enabled": true
+    "star": true
   },
   {
     "name": "contract-fresh.png",
     "profile": "contract",
     "fresh": true,
-    "star": false,
-    "enabled": true
+    "star": false
   },
   {
     "name": "contract-fresh-star.png",
     "profile": "contract",
     "fresh": true,
-    "star": true,
-    "enabled": true
+    "star": true
   },
   {
     "name": "finance-clean.png",
     "profile": "finance",
     "fresh": false,
-    "star": false,
-    "enabled": true
+    "star": false
   },
   {
     "name": "finance-clean-star.png",
     "profile": "finance",
     "fresh": false,
-    "star": true,
-    "enabled": true
+    "star": true
   },
   {
     "name": "finance-fresh.png",
     "profile": "finance",
     "fresh": true,
-    "star": false,
-    "enabled": true
+    "star": false
   },
   {
     "name": "finance-fresh-star.png",
     "profile": "finance",
     "fresh": true,
-    "star": true,
-    "enabled": true
+    "star": true
   },
   {
     "name": "twoline-clean.png",
     "profile": "twoline",
     "fresh": false,
-    "star": false,
-    "enabled": false
+    "star": false
   },
   {
     "name": "twoline-fresh.png",
     "profile": "twoline",
     "fresh": true,
-    "star": false,
-    "enabled": false
+    "star": false
   }
 ]

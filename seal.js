@@ -63,29 +63,44 @@
     const absSpan = Math.abs(spanDeg);
     const arcLen = Math.abs(radius * (absSpan * Math.PI) / 180);
     ctx.font = `${weight || 700} ${fontPx}px ${fontFamily || FONT_SONG}`;
-    let widths = chars.map((c) => ctx.measureText(c).width || fontPx);
-    let totalRaw = widths.reduce((a, b) => a + b, 0) || 1;
-    // fix 给了横向比例和字距就按它排（排版算法在 nameLayout 里统一算）；没给才自己均分
-    const sx = fix && fix.sx != null ? fix.sx : 1;
-    let gapPx;
-    if (fix && fix.gapPx != null) {
-      gapPx = fix.gapPx;
+    // cells 由 nameLayout 按每个字的墨迹宽度算好：括号只占自己的墨宽，
+    // 每个字还可以有独立的横向比例和墨心偏移。没给才退回按字身宽均分。
+    let widths, sxs, dxs, gapList, cursor;
+    if (fix && fix.cells) {
+      widths = fix.cells.map((c) => c.w);
+      sxs = fix.cells.map((c) => (c.sx == null ? 1 : c.sx));
+      dxs = fix.cells.map((c) => c.dx || 0);
+      gapList = fix.gaps || [];
+      const total = widths.reduce((a, w, i) => a + w * sxs[i], 0)
+        + gapList.reduce((a, b) => a + b, 0);
+      cursor = Math.max(0, (arcLen - total) / 2);
     } else {
-      const target = arcLen * 0.97;
-      if (totalRaw > target) {
-        fontPx *= target / totalRaw;
-        ctx.font = `${weight || 700} ${fontPx}px ${fontFamily || FONT_SONG}`;
-        widths = chars.map((c) => ctx.measureText(c).width || fontPx);
-        totalRaw = widths.reduce((a, b) => a + b, 0) || 1;
+      let totalRaw = chars.reduce((a, c) => a + (ctx.measureText(c).width || fontPx), 0) || 1;
+      // fix 给了横向比例和字距就按它排（排版算法在 nameLayout 里统一算）；没给才自己均分
+      const sx = fix && fix.sx != null ? fix.sx : 1;
+      let gapPx;
+      if (fix && fix.gapPx != null) {
+        gapPx = fix.gapPx;
+      } else {
+        const target = arcLen * 0.97;
+        if (totalRaw > target) {
+          fontPx *= target / totalRaw;
+          ctx.font = `${weight || 700} ${fontPx}px ${fontFamily || FONT_SONG}`;
+          totalRaw = chars.reduce((a, c) => a + (ctx.measureText(c).width || fontPx), 0) || 1;
+        }
+        gapPx = chars.length > 1 ? Math.max(0, (arcLen - totalRaw) / (chars.length - 1)) : 0;
       }
-      gapPx = chars.length > 1 ? Math.max(0, (arcLen - totalRaw) / (chars.length - 1)) : 0;
+      widths = chars.map((c) => ctx.measureText(c).width || fontPx);
+      sxs = chars.map(() => sx);
+      dxs = chars.map(() => 0);
+      gapList = chars.map(() => gapPx);
+      cursor = fix ? Math.max(0, (arcLen - (widths.reduce((a, w, i) => a + w * sxs[i], 0)
+        + gapPx * (chars.length - 1))) / 2) : 0;
     }
-    // 给了定值就居中排放
-    let cursor = fix ? Math.max(0, (arcLen - (totalRaw * sx + gapPx * (chars.length - 1))) / 2) / 1 : 0;
     for (let i = 0; i < chars.length; i++) {
-      const wEff = widths[i] * sx;
+      const wEff = widths[i] * sxs[i];
       const centerArc = cursor + wEff / 2;
-      cursor += wEff + gapPx;
+      cursor += wEff + (gapList[i] || 0);
       let aDeg = startDeg + dir * ((centerArc / radius) * 180) / Math.PI;
       let radiusPx = radius;
       if (rnd && jitterScale) {
@@ -99,24 +114,20 @@
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate((rot * Math.PI) / 180);
-      if (sx < 1) {
-        // 不做合成补偿：压窄后竖画会等比变细，但用户要的是正常字重，
-        // 之前按字距放大补偿，字少的名称字距宽、补偿拿满，12 字看起来像加粗。
-        ctx.scale(sx, 1);
-        ctx.fillText(chars[i], 0, 0);
-      } else {
-        ctx.fillText(chars[i], 0, 0);
-      }
+      if (sxs[i] !== 1) ctx.scale(sxs[i], 1);
+      // 墨心对齐字格中心：全角括号在字身框里偏右/偏左，抵掉偏移才不会挤到一侧
+      ctx.fillText(chars[i], -dxs[i], 0);
       if (strokePx > 0) {
         ctx.lineWidth = strokePx;
         ctx.lineJoin = 'round';
         ctx.strokeStyle = ctx.fillStyle;   // 描边跟着墨色，别用画布默认黑
-        ctx.strokeText(chars[i], 0, 0);
+        ctx.strokeText(chars[i], -dxs[i], 0);
       }
       ctx.restore();
     }
     ctx.restore();
   }
+
   function drawStar(ctx, cx, cy, widthMm, scale, seed, jitterScale) {
     const R = (widthMm / 2) / Math.sin((72 * Math.PI) / 180);
     const r = R * 0.381966;
@@ -929,7 +940,7 @@
       nameSize: 6.75,
       nameWeight: 400,
       nameStroke: 0,
-      arc: 240,
+      arc: 265,
       starWidth: 14,
       star: true,
       lineSize: 5.8,
@@ -1021,9 +1032,9 @@
     }
     ctx.restore();
 
-    // 上弧公司名：字高按 mm 计，字距固定为 0.16 倍字高；排不下时按 nameMode 处理
-    //   uniform：保字高，横向压窄（长宋做法，下限 35%），压到下限还不够才缩字号
-    //   fit：不压窄，只缩字号
+    // 上弧公司名：逐字量墨宽，括号只占自己的墨宽；普通公章按目标角度铺开，
+    // 字少时字距最多 0.6 倍字高，长名收到约 0.2 倍字高；带中心章名的角度小一些。
+    // 仍放不下才压窄字形（下限 49%）、缩字号。
     const chars = Array.from(o.name || '');
     // 弧长以 nameLayout 算出来的为准（它按编码带留白推），不要用 o.arc 原值，
     // 否则算的时候是 256°、画的时候还是 250°，首末字与编码的空隙就对不齐
@@ -1031,22 +1042,32 @@
     let nameR = R - o.border - 0.9 - o.nameSize / 2;
     let usedNameSize = o.nameSize;
     if (chars.length) {
-      const lay = nameLayout(o);
+      const lay = nameLayout(Object.assign({}, o, { fontFamily: FONT_SONG }));
       usedNameSize = lay.size;
       nameR = lay.r;
       arcDeg = lay.arcDeg;
       const namePx = (lay.size / 0.88) * s;
-      const gapPx = lay.gapMm * s;
-      drawArcText(ctx, o.name, cx, cy, nameR * s, namePx,
-        90 + arcDeg / 2, -arcDeg, o.nameWeight || 400, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
-        { sx: lay.sx, gapPx });
+      if (lay.glyphs) {
+        drawArcText(ctx, o.name, cx, cy, nameR * s, namePx,
+          90 + arcDeg / 2, -arcDeg, o.nameWeight || 400, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
+          {
+            cells: lay.glyphs.map((g) => ({ w: g.w * s, dx: g.dx * s, sx: g.sx })),
+            gaps: lay.gaps.map((g) => g * s),
+          });
+      } else {
+        const gapPx = lay.gapMm * s;
+        drawArcText(ctx, o.name, cx, cy, nameR * s, namePx,
+          90 + arcDeg / 2, -arcDeg, o.nameWeight || 400, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
+          { sx: lay.sx, gapPx });
+      }
     }
 
     // 五角星
     if (o.star !== false) drawStar(ctx, cx, cy - 0.5 * s, o.starWidth, s, o.seed + 3, o.jitter || 0);
 
     // 公开版只画一行章名：合同专用章 / 财务专用章。两行布局在公开核心中不实现。
-    const lineY = o.star === false ? (o.lineY1 || 10.3) : (o.lineY1 || 9.8);
+    // 带星和不带星用同一个 10.3，切星标时章名不往上跳
+    const lineY = o.lineY1 || 10.3;
     if (o.line1) {
       const lineSize = Math.min(o.lineSize, usedNameSize * 1.05);
       const linePx = (lineSize / 0.88) * s;
