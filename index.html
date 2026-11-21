@@ -10,7 +10,7 @@
 <link rel="icon" href="./favicon.ico?v=2" sizes="32x32">
 <link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=2">
-<link rel="stylesheet" href="./styles.css?v=301">
+<link rel="stylesheet" href="./styles.css?v=302">
 </head>
 <body>
 <a class="skip" href="#workbench">跳到印章生成</a>
@@ -104,6 +104,7 @@
       <figure class="preview-figure">
         <div class="preview-bar">
           <figcaption id="meta" class="stage-meta"></figcaption>
+          <span class="preview-sample-tag" id="previewSampleTag">样张预览 · 点「生成印章」出图</span>
           <span class="preview-stale" id="previewStale" hidden>参数已改，点「生成印章」重新出图</span>
         </div>
         <div class="preview-canvas-wrap">
@@ -339,7 +340,7 @@
   <div class="foot-inner">
     <div>
       <p class="foot-brand"><img src="./favicon.svg" width="20" height="20" alt="">标准印章生成器（公开版）</p>
-      <p class="foot-note">产出为 600 dpi 透明 PNG，生成在浏览器本地完成，不上传名称与编码，图像不是备案的合法电子印章。</p>
+      <p class="foot-note">600 dpi 透明 PNG，浏览器本地生成且不上传名称与编码。导出的电子印章是否具备法律效力取决于公司认不认可这个章。</p>
     </div>
     <nav class="foot-links" aria-label="相关链接">
       <a href="https://hey-yx.com/ohmystamp/1/" target="_blank" rel="noopener noreferrer">完整版</a>
@@ -352,6 +353,6 @@
 <script src="./seal-meta.js?v=10"></script>
 <script src="./seal.js?v=9"></script>
 <script src="./zip.js?v=1"></script>
-<script src="./app.js?v=15"></script>
+<script src="./app.js?v=16"></script>
 </body>
 </html>

@@ -799,12 +799,35 @@
     if (bmp.close) bmp.close();
   }
 
-  // 把选中那张画到左边大图；过期提示由 markStale 管
+  function drawSamplePreview(imgEl) {
+    if (!imgEl) return;
+    const key = currentKey();
+    const paint = () => {
+      if (lastSet || currentKey() !== key) return;
+      const c = $('preview');
+      const g = c.getContext('2d');
+      g.clearRect(0, 0, c.width, c.height);
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(imgEl, 0, 0, c.width, c.height);
+      $('previewEmpty').hidden = true;
+    };
+    if (imgEl.complete && imgEl.naturalWidth > 0) paint();
+    else imgEl.addEventListener('load', paint, { once: true });
+  }
+
+  // 把选中那张画到上方大图；生成前显示对应样式的样张，生成后显示真实出图
   function showSelected() {
     const item = lastSet && lastSet.items[currentKey()];
-    if (!item) return;
-    drawPreview(item.blob);
-    $('previewEmpty').hidden = true;
+    const sampleTag = $('previewSampleTag');
+    if (item) {
+      if (sampleTag) sampleTag.hidden = true;
+      drawPreview(item.blob);
+      $('previewEmpty').hidden = true;
+      return;
+    }
+    if (sampleTag) sampleTag.hidden = false;
+    drawSamplePreview(cardImg(currentKey()));
   }
 
   function clearSet() {
@@ -905,6 +928,7 @@
         syncStarSamples();
         render();
         persist();
+        showSelected();
         return;
       }
       const btn = e.target.closest('.opt');
@@ -921,7 +945,7 @@
         render();
         persist();
       }
-      // 生成过就把左边大图换成这张的结果；没生成时保持原样
+      // 选中样式立即更新上方大图（生成后为真实结果，生成前为样张）
       showSelected();
     });
 
@@ -1028,6 +1052,7 @@
   syncStarToggle();
   syncStarSamples();
   render();
+  showSelected();
   // 编码为空或还是上次的占位号时，按企业名重算一次；初始示例和手填/记住的编码不动
   if (codeSource === 'auto' || !$('code').value.trim()) applyNameRegion();
 })();

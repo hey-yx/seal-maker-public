@@ -530,6 +530,19 @@ img, svg { display: block; max-width: 100%; }
   white-space: nowrap;
 }
 
+.preview-sample-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--sp-2);
+  border: var(--hairline) solid var(--s-accent);
+  border-radius: var(--r-sm);
+  background: var(--s-accent-soft);
+  color: var(--s-accent);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 700;
+}
+
 .preview-stale {
   display: inline-flex;
   align-items: center;
