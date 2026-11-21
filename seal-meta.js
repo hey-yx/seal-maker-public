@@ -2,7 +2,8 @@
 (function (global) {
   'use strict';
 
-  const FONT_SONG = '"Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif';
+  const FONT_SONG = '"Noto Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", "SimSun", serif';
+  const SEAL_WEIGHT = 600;
 
   // 逐字量墨迹宽度：环排要按字的实际墨宽排，不能把全角括号当成整字。
   // 量一次缓存一次，输入框每次按键、每次生成都复用。
@@ -32,7 +33,7 @@
   // dx 是墨迹中心相对字身框中心的偏移，画的时候要把它抵掉，否则全角括号会偏到一侧。
   function glyphMetrics(text, weight, fontFamily) {
     const chars = Array.from(text || '');
-    const key = `${weight || 400}|${fontFamily || FONT_SONG}|${text || ''}`;
+    const key = `${weight || SEAL_WEIGHT}|${fontFamily || FONT_SONG}|${text || ''}`;
     if (metricsCache.has(key)) return metricsCache.get(key);
     let out;
     try {
@@ -42,7 +43,7 @@
       measureCanvas.height = 8;
       const ctx = measureCanvas.getContext('2d');
       const fontPx = 200;
-      ctx.font = `${weight || 400} ${fontPx}px ${fontFamily || FONT_SONG}`;
+      ctx.font = `${weight || SEAL_WEIGHT} ${fontPx}px ${fontFamily || FONT_SONG}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       out = chars.map((ch) => {
@@ -91,13 +92,13 @@
     const chars = Array.from(o.name || '');
     const n = chars.length;
     const R = (o.diameter || 42) / 2;
-    const border = o.border != null ? o.border : 1.2;
+    const border = o.border != null ? o.border : 1.185;
     // 环排角度按名称长度算：名称短就占小弧段，名称长才涨到模板上限。
     // 普通公章上限 265°，带中心章名的专用章上限 240°，避免名称压到章名。
     const arcMax = o.arc || 265;
-    const outerGap = o.nameOuterGap != null ? Math.max(0, +o.nameOuterGap) : 1.1;
+    const outerGap = o.nameOuterGap != null ? Math.max(0, +o.nameOuterGap) : 0.95;
     const outer = R - border - outerGap;
-    const target = o.nameSize || 6.75;
+    const target = o.nameSize || 6.5;
     // 字宽按宋体实测：字高 size 对应字号 size/0.88。横向比例用 0.65，
     // 落到墨迹上约为字高的 0.74，看着是竖长瘦体；再宽接近方块，字少时发胖。
     // 锁死横向比例，字不随弧长变宽。
@@ -162,7 +163,7 @@
     // 但字距有上限（0.6 倍字高），够不到就停在当前角度，不硬拉。
     // 合同/财务/两行章带中心文字，名称角度保持小一些，避免压到中间的章名。
     const hasCenter = !!(o.line1 || o.line2) || (o.arc != null && +o.arc < 260);
-    const metrics = glyphMetrics(o.name, o.nameWeight || 400, o.fontFamily || FONT_SONG);
+    const metrics = glyphMetrics(o.name, o.nameWeight || SEAL_WEIGHT, o.fontFamily || FONT_SONG);
     const units = [];
     for (let i = 0; i < n - 1; i++) units.push(boundaryWeight(chars[i], chars[i + 1]));
     const unitSum = units.reduce((a, b) => a + b, 0) || 1;
@@ -310,7 +311,7 @@
       return { size: o.nameSize || 7.0, sx: 1, gapMm: 0, chars: 0, shrunk: false, arcMm: 0, needMm: 0, arcUsed: o.arc || 270, arcDeg: o.arc || 270 };
     }
     const lay = nameLayout(o);
-    const target = o.nameSize || 6.75;
+    const target = o.nameSize || 6.5;
     return {
       arcDeg: +lay.arcDeg.toFixed(1),
       r: +lay.r.toFixed(2),
@@ -336,5 +337,14 @@
     return (name || 'seal').replace(/[\\/:*?"<>|\s]/g, '');
   }
 
-  global.SealMeta = { nameLayout, nameFit, glyphMetrics, toSlug };
+  function loadFont(text) {
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.load) {
+      return document.fonts.load(`${SEAL_WEIGHT} 40px "Noto Serif SC"`, text || '印').then(() => {
+        metricsCache.clear();
+      }).catch(() => {});
+    }
+    return Promise.resolve();
+  }
+
+  global.SealMeta = { nameLayout, nameFit, glyphMetrics, toSlug, loadFont, FONT_SONG, SEAL_WEIGHT };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2,10 +2,10 @@
 (function (global) {
   'use strict';
   if (!global.SealMeta) throw new Error('seal-meta.js must load before seal.js');
+  const { nameLayout, nameFit, toSlug, FONT_SONG, SEAL_WEIGHT } = global.SealMeta;
 
   const SIZE = 1000;        // 默认 1000px 见方，42mm 章体约 992px（600dpi）
   const PXMM = 600 / 25.4;  // 600dpi 下的每毫米像素
-  const FONT_SONG = '"Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif';
   const FONT_NUM = '"Arial", "Helvetica Neue", Helvetica, sans-serif';
 
   function mulberry32(seed) {
@@ -292,7 +292,7 @@
       specks: 0,
       nicks: 0,
       edgeAmp: 0.012,
-      nameWeight: 400,
+      nameWeight: SEAL_WEIGHT,
       nameStroke: 0.015,
       jitter: 0,
       color: o.color || '#DA251D',
@@ -927,8 +927,6 @@
     return canvas;
   }
 
-  const { nameLayout, nameFit, toSlug } = global.SealMeta;
-
   function render(canvas, opts) {
     const o = Object.assign({
       name: '',
@@ -936,15 +934,16 @@
       line2: '',
       code: '',
       diameter: 42,
-      border: 1.2,
-      nameSize: 6.75,
-      nameWeight: 400,
+      border: 1.185,
+      nameSize: 6.5,
+      nameWeight: SEAL_WEIGHT,
       nameStroke: 0,
+      lineWeight: SEAL_WEIGHT,
       arc: 265,
-      starWidth: 14,
+      starWidth: 14.2,
       star: true,
       lineSize: 5.8,
-      codeSize: 1.35,
+      codeSize: 1.365,
       codeWeight: 700,
       codeSoft: 0.6,
       codeStart: 205,
@@ -1049,7 +1048,7 @@
       const namePx = (lay.size / 0.88) * s;
       if (lay.glyphs) {
         drawArcText(ctx, o.name, cx, cy, nameR * s, namePx,
-          90 + arcDeg / 2, -arcDeg, o.nameWeight || 400, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
+          90 + arcDeg / 2, -arcDeg, o.nameWeight || SEAL_WEIGHT, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
           {
             cells: lay.glyphs.map((g) => ({ w: g.w * s, dx: g.dx * s, sx: g.sx })),
             gaps: lay.gaps.map((g) => g * s),
@@ -1057,7 +1056,7 @@
       } else {
         const gapPx = lay.gapMm * s;
         drawArcText(ctx, o.name, cx, cy, nameR * s, namePx,
-          90 + arcDeg / 2, -arcDeg, o.nameWeight || 400, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
+          90 + arcDeg / 2, -arcDeg, o.nameWeight || SEAL_WEIGHT, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
           { sx: lay.sx, gapPx });
       }
     }
@@ -1072,7 +1071,7 @@
       const lineSize = Math.min(o.lineSize, usedNameSize * 1.05);
       const linePx = (lineSize / 0.88) * s;
       ctx.save();
-      ctx.font = `${o.lineWeight || 700} ${linePx}px ${FONT_SONG}`;
+      ctx.font = `${o.lineWeight || SEAL_WEIGHT} ${linePx}px ${FONT_SONG}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const maxW = 22 * s;
@@ -1081,9 +1080,11 @@
       ctx.translate(cx, cy + lineY * s);
       ctx.scale(k, 1);
       ctx.fillText(o.line1, 0, 0);
-      ctx.lineWidth = 0.03 * s;
-      ctx.lineJoin = 'round';
-      ctx.strokeText(o.line1, 0, 0);
+      if (o.nameStroke > 0) {
+        ctx.lineWidth = o.nameStroke * s;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(o.line1, 0, 0);
+      }
       ctx.restore();
     }
 
@@ -1311,8 +1312,8 @@
   // 公开版只暴露合同专用章和财务专用章；布局参数在入口处锁定，调用方改不了。
   const rawRender = render;
   const LITE = {
-    contract: { line1: '合同专用章', arc: 240, nameSize: 6.75, lineSize: 5.3 },
-    finance: { line1: '财务专用章', arc: 240, nameSize: 6.75, lineSize: 5.3 }
+    contract: { line1: '合同专用章', arc: 240, nameSize: 6.5, lineSize: 5.3 },
+    finance: { line1: '财务专用章', arc: 240, nameSize: 6.5, lineSize: 5.3 }
   };
 
   function renderLite(canvas, opts) {

@@ -5,14 +5,14 @@
   const meta = $('meta');
 
   const PRESETS = {
-    contract: { px: 1000, tex: 0, diameter: 42, nameSize: 6.75, arc: 240, color: '#DA251D', jitter: 0, star: false, line1: '合同专用章', line2: '', lineSize: 5.3, edgeAmp: 0.01, nicks: 0, specks: 0 },
-    finance: { px: 1000, tex: 0, diameter: 42, nameSize: 6.75, arc: 240, color: '#DA251D', jitter: 0, star: false, line1: '财务专用章', line2: '', lineSize: 5.3, edgeAmp: 0.01, nicks: 0, specks: 0 }
+    contract: { px: 1000, tex: 0, diameter: 42, nameSize: 6.5, arc: 240, color: '#DA251D', jitter: 0, star: false, line1: '合同专用章', line2: '', lineSize: 5.3, edgeAmp: 0.01, nicks: 0, specks: 0 },
+    finance: { px: 1000, tex: 0, diameter: 42, nameSize: 6.5, arc: 240, color: '#DA251D', jitter: 0, star: false, line1: '财务专用章', line2: '', lineSize: 5.3, edgeAmp: 0.01, nicks: 0, specks: 0 }
   };
 
   // 直径 → 国标几何（DB11/T 918-2021 6.2.1）：42mm 边宽 1.2、五角星 14；
-  // 40mm 边宽 1.1、五角星 13。名称字高 6.75 和环排角度两种直径共用。
+  // 40mm 边宽 1.1、五角星 13。名称字高 6.5 和环排角度两种直径共用。
   const GEOMETRY = {
-    42: { border: 1.2, starWidth: 14 },
+    42: { border: 1.185, starWidth: 14.2 },
     40: { border: 1.1, starWidth: 13 }
   };
   const geomFor = (d) => GEOMETRY[d] || GEOMETRY[42];
@@ -395,7 +395,7 @@
     return /^\d{13,14}$/.test(code);
   }
 
-  function updateNameState(f) {
+  function updateNameState(f, fromFontLoad) {
     const el = $('nameHint');
     if (!el) return;
     const m = SealMeta.nameFit({
@@ -413,6 +413,12 @@
     const arcTail = hasCode ? `环排 ${m.arcDeg}°，距编码 ${clearMm}\u00A0mm` : `环排 ${m.arcDeg}°`;
     // 字高不动，靠字形宽度（49%～75%）和字距一起铺满弧长
     el.textContent = `${m.chars} 字，字高 ${m.size}\u00A0mm${stdSize}，字形宽度 ${Math.round(m.sx * 100)}%，字距 ${m.gapMm}\u00A0mm，${arcTail}`;
+    if (!fromFontLoad && SealMeta.loadFont) {
+      SealMeta.loadFont(f.name).then(() => {
+        const cur = readForm();
+        if (cur.name === f.name) updateNameState(cur, true);
+      });
+    }
   }
 
   function updateCodeState(code, profile) {
@@ -443,7 +449,7 @@
     const presetName = PRESET_LABELS[f.profile] || '印章';
     const g = geomFor(f.diameter);
     const outPx = Math.round(f.diameter * PXMM);
-    const codeNote = `编码 1.35 mm${codeSource === 'auto' ? ' · 编码为占位号' : ''}`;
+    const codeNote = `编码 1.365 mm${codeSource === 'auto' ? ' · 编码为占位号' : ''}`;
     // 每项单独一个不换行的小块，换行只发生在项与项之间，不会留下悬空的“·”
     const metaItems = [
       presetName,
@@ -461,7 +467,7 @@
       return span;
     }));
     const note = $('sizeNote');
-    if (note) note.textContent = `名称字高 6.75\u00A0mm、离内边 1.1\u00A0mm 固定；合同章和财务章中心有章名，名称最多 240°，字距按名称长度在 1.35～2.6\u00A0mm 之间调节。括号按墨宽排版，仍放不下才压窄字形、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
+    if (note) note.textContent = `名称字高 6.5\u00A0mm、离内边 0.95\u00A0mm 固定；合同章和财务章中心有章名，名称最多 240°，字距按名称长度在 1.35～2.6\u00A0mm 之间调节。括号按墨宽排版，仍放不下才压窄字形、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
     updateNameState(f);
     updateCodeState(f.code, f.profile);
     markStale(f);
@@ -742,6 +748,7 @@
     btn.disabled = true;
     const started = Date.now();
     try {
+      if (SealMeta.loadFont) await SealMeta.loadFont(f.name + '合同专用章财务专用章');
       const items = [];
       for (let i = 0; i < ENABLED_STYLES.length; i++) {
         const style = ENABLED_STYLES[i];
@@ -918,6 +925,7 @@
   syncStarSamples();
   render();
   showSelected();
+  if (SealMeta.loadFont) SealMeta.loadFont('合同专用章财务专用章');
   // 编码为空或还是上次的占位号时，按企业名重算一次；初始示例和手填/记住的编码不动
   if (codeSource === 'auto' || !$('code').value.trim()) applyNameRegion();
 })();
