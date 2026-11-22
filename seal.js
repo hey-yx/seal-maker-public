@@ -1065,8 +1065,8 @@
     if (o.star !== false) drawStar(ctx, cx, cy - 0.5 * s, o.starWidth, s, o.seed + 3, o.jitter || 0);
 
     // 公开版只画一行章名：合同专用章 / 财务专用章。两行布局在公开核心中不实现。
-    // 带星和不带星用同一个 10.3，切星标时章名不往上跳
-    const lineY = o.lineY1 || 10.3;
+    // 带星和不带星用同一个位置；无编码时底部留空多，章名下移到 12.2 mm
+    const lineY = o.lineY1 || (!o.code ? 12.2 : 10.3);
     if (o.line1) {
       const lineSize = Math.min(o.lineSize, usedNameSize * 1.05);
       const linePx = (lineSize / 0.88) * s;

@@ -162,6 +162,7 @@
     // 无中心章名的普通公章，名称尽量铺到正常环排角度；字少时靠加大字距去够，
     // 但字距有上限（0.6 倍字高），够不到就停在当前角度，不硬拉。
     // 合同/财务/两行章带中心文字，名称角度保持小一些，避免压到中间的章名。
+    const uncoded = o.noCode != null ? !!o.noCode : !o.code;
     const hasCenter = !!(o.line1 || o.line2) || (o.arc != null && +o.arc < 260);
     const metrics = glyphMetrics(o.name, o.nameWeight || SEAL_WEIGHT, o.fontFamily || FONT_SONG);
     const units = [];
@@ -169,8 +170,10 @@
     const unitSum = units.reduce((a, b) => a + b, 0) || 1;
     const isPunct = (g) => g.kind !== 'normal' && g.kind !== 'space';
     const emOf = (sz) => sz / 0.88;
-    const targetDeg = hasCenter ? null : Math.min(arcMax, 172 + 9 * n);
-    const GAP_CAP = 0.60;   // 普通字距上限：0.6 倍字高，约 4mm
+    const targetDeg = hasCenter
+      ? (uncoded ? Math.min(arcMax, o.line2 ? 172 + 7 * n : 180 + 8 * n) : null)
+      : Math.min(arcMax, uncoded ? 186 + 8.5 * n : 172 + 9 * n);
+    const GAP_CAP = uncoded ? 0.72 : 0.60;   // 普通字距上限：有编码 0.6 倍字高，无编码放宽到 0.72 倍让名称围绕圆周铺开
     const GAP_FLOOR = 0.20; // 普通字距下限：0.2 倍字高，约 1.35mm
     const GAP_TIGHT = 0.10; // 排不下时字距可收到 0.1 倍字高
 
@@ -202,12 +205,12 @@
 
       let gap;
       let specialBase;
-      if (hasCenter) {
-        // 带中心章名：按上限角度铺开，字距不超过 2.6mm，短名不硬拉
+      if (hasCenter && !uncoded) {
+        // 带中心章名且有编码：按上限角度铺开，字距不超过 2.6mm，短名不硬拉
         gap = Math.max(gapFloor, Math.min(GAP_PREF, (arcLenMax - ink) / unitSum));
         specialBase = gap;
       } else {
-        // 普通公章：先按目标角度反算普通字距，短名最多到 0.6 倍字高
+        // 普通公章，或无编码的单行专用章：先按目标角度反算普通字距
         const targetLen = rr * (targetDeg * Math.PI / 180);
         const fixed = specialSumAt(gapFloor);
         gap = normalCount > 0

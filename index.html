@@ -56,7 +56,13 @@
       </div>
 
       <div class="field">
-        <label for="code">印章编码</label>
+        <div class="field-head">
+          <label for="code">印章编码</label>
+          <label class="label-check" title="部分地区或专用章不需要编码，勾选后印章底部留白">
+            <input id="noCode" type="checkbox">
+            <span>不刻编码</span>
+          </label>
+        </div>
         <div class="code-row">
           <input id="code" type="text" placeholder="13 或 14 位数字" inputmode="numeric" maxlength="14" autocomplete="off" aria-describedby="codeHint codeAutoNote">
           <button id="regenCode" type="button" class="btn-small" title="按公司名里的行政区划重新拼一个占位号">随机生成</button>
@@ -226,6 +232,7 @@
 </footer>
 
 <script src="./data/divisions.js?v=1"></script>
+<script src="./seal-code.js?v=1"></script>
 <script src="./seal-meta.js?v=18"></script>
 <script src="./seal.js?v=15"></script>
 <script src="./app.js?v=22"></script>

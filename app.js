@@ -156,6 +156,7 @@
   // 地址比企业名更具体：两边都识别到行政区划时，取等级更深的那个（区县 > 地市 > 省）。
   // 每一支都留一句提示：没换号也要说清为什么，不能点完地址什么都不发生。
   function applyNameRegion(opts) {
+    if ($('noCode') && $('noCode').checked) return;
     const force = !!(opts && opts.force);
     const fromInput = !!(opts && opts.fromInput);
     const name = $('name').value.trim();
@@ -208,13 +209,24 @@
         return;
       }
       const total = now.length === 14 ? 14 : 13;
-      const next = prefix + randomDigits(total - 6);
+      // 结构合规的占位号：区划(6)+类别(1)+流水+校验。
+      // 流水由企业名确定性生成，同一个名字每次都是同一号；点「换号」时把时间掺进种子才会变。
+      const made = window.SealCode
+        ? window.SealCode.generate({
+          region: prefix,
+          type: window.SealCode.templateType($('preset').value),
+          len: total,
+          seed: name || address || prefix,
+          salt: force ? String(Date.now()) : ''
+        })
+        : null;
+      const next = made ? made.code : prefix + randomDigits(total - 6);
       setCode(next, 'auto');
       lastAutoAt = Date.now();
       // 直辖市在表里是省级，但码就是城市码，提示按地市说
       const lv = hit.level === 1 && /^(北京|上海|天津|重庆)市$/.test(hit.name) ? 2 : hit.level;
       if (lv === 3) {
-        hint(`已按${src}里的${hit.name}（${prefix}）拼好 ${total} 位占位号，后 ${total - 6} 位随机`);
+        hint(`已按${src}里的${hit.name}（${prefix}）拼好 ${total} 位占位号：区划+类别+流水+校验，流水是虚构值`);
       } else if (lv === 2) {
         hint(`已按${src}里的${hit.name}（${prefix}）拼好占位号；备案在区县的话按回执改前 6 位`);
       } else {
@@ -360,6 +372,7 @@
       line2: $('line2').value.trim(),
       color: $('color').value || '#DA251D',
       code: $('code').value.replace(/\D/g, '').slice(0, 14),
+      noCode: !!($('noCode') && $('noCode').checked),
       fresh: $('look').value === 'fresh',
       diameter: +$('diameter').value === 40 ? 40 : 42,
       nameSize: p.nameSize,
@@ -390,17 +403,19 @@
     });
   }
 
-  // 公开版只有合同/财务，编码必须 13 或 14 位
-  function codeOk(code) {
+  // 公开版只有合同/财务，勾选“不刻编码”时可以不填，否则必须 13 或 14 位
+  function codeOk(code, noCode) {
+    if (noCode) return true;
     return /^\d{13,14}$/.test(code);
   }
 
   function updateNameState(f, fromFontLoad) {
     const el = $('nameHint');
     if (!el) return;
+    const arc = f.noCode ? 255 : (f.arc || 260);
     const m = SealMeta.nameFit({
-      name: f.name, nameSize: f.nameSize, arc: f.arc || 260, border: geomFor(f.diameter).border,
-      diameter: f.diameter
+      name: f.name, nameSize: f.nameSize, arc, border: geomFor(f.diameter).border,
+      diameter: f.diameter, noCode: !!f.noCode, line1: f.line1
     });
     if (!m.chars) { el.hidden = true; return; }
     el.hidden = false;
@@ -409,7 +424,7 @@
     // 名称首末与底部编码的间隔：编码占 232°–307°（75°），剩下两段对称分给左右
     const clearDeg = Math.max(0, (360 - 75 - m.arcDeg) / 2);
     const clearMm = ((clearDeg * Math.PI) / 180 * m.r).toFixed(1);
-    const hasCode = !!f.code;
+    const hasCode = !f.noCode && !!f.code;
     const arcTail = hasCode ? `环排 ${m.arcDeg}°，距编码 ${clearMm}\u00A0mm` : `环排 ${m.arcDeg}°`;
     // 字高不动，靠字形宽度（49%～75%）和字距一起铺满弧长
     el.textContent = `${m.chars} 字，字高 ${m.size}\u00A0mm${stdSize}，字形宽度 ${Math.round(m.sx * 100)}%，字距 ${m.gapMm}\u00A0mm，${arcTail}`;
@@ -421,26 +436,43 @@
     }
   }
 
-  function updateCodeState(code, profile) {
-    const ok = codeOk(code);
+  function updateCodeState(code, profile, noCode) {
+    const off = !!noCode;
+    const codeInput = $('code');
+    if (codeInput) codeInput.disabled = off;
+    const regen = $('regenCode');
+    if (regen) regen.disabled = off;
+    const note = $('codeAutoNote');
+    if (off) {
+      const gen = $('generate');
+      if (gen) gen.disabled = generating;
+      if (note) { note.textContent = ''; note.hidden = true; }
+      setState('');
+      return;
+    }
+    const ok = codeOk(code, false);
     const gen = $('generate');
     if (gen) gen.disabled = !ok || generating;
-    const regen = $('regenCode');
-    if (regen) regen.disabled = false;
-    const note = $('codeAutoNote');
     if (note) {
       if (codeSource === 'auto' && code) {
-        const tail = code.length === 14 ? 8 : 7;
-        note.textContent = `占位号：前 6 位按行政区划，后 ${tail} 位随机，不是备案编码。正式使用请换成真实编号。`;
+        const serialLen = code.length - 8;
+        note.textContent = `占位号：区划(6)+类别(1)+流水(${serialLen})+校验(1)，结构与备案编码一致；流水为虚构值，不是备案编号。正式使用请换成真实编号。`;
         note.hidden = false;
       } else {
-        note.textContent = '';
-        note.hidden = true;
+        // 手填的编码：只做区划体检，不拿校验位否定它 —— 各省算法不同，算不对很正常
+        const hit = code && window.SealCode ? window.SealCode.validate(code) : null;
+        if (hit && hit.lenOk && hit.regionOk === false && window.SEAL_DIVISIONS) {
+          note.textContent = `前 6 位 ${hit.parts.region} 不在现行区划表里；撤销的旧区划码不影响刻制。`;
+          note.hidden = false;
+        } else {
+          note.textContent = '';
+          note.hidden = true;
+        }
       }
     }
     if (ok) { setState(''); return; }
     if (!code) { setState(''); return; }
-    if (code.length === 6) setState(`已填区号 ${code}，再补 7 到 8 位顺序号`);
+    if (code.length === 6) setState(`已填区号 ${code}，还差类别 1 位 + 流水 5 位 + 校验 1 位`);
     else setState(`编码只能 13 或 14 位，当前 ${code.length} 位`);
   }
 
@@ -449,7 +481,9 @@
     const presetName = PRESET_LABELS[f.profile] || '印章';
     const g = geomFor(f.diameter);
     const outPx = Math.round(f.diameter * PXMM);
-    const codeNote = `编码 1.365 mm${codeSource === 'auto' ? ' · 编码为占位号' : ''}`;
+    const codeNote = f.noCode
+      ? '不刻编码'
+      : `编码 1.365 mm${codeSource === 'auto' ? ' · 编码为占位号' : ''}`;
     // 每项单独一个不换行的小块，换行只发生在项与项之间，不会留下悬空的“·”
     const metaItems = [
       presetName,
@@ -469,7 +503,7 @@
     const note = $('sizeNote');
     if (note) note.textContent = `名称字高 6.5\u00A0mm、离内边 0.95\u00A0mm 固定；合同章和财务章中心有章名，名称最多 245°，字距按名称长度在 1.35～2.6\u00A0mm 之间调节。括号按墨宽排版，仍放不下才压窄字形、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
     updateNameState(f);
-    updateCodeState(f.code, f.profile);
+    updateCodeState(f.code, f.profile, f.noCode);
     markStale(f);
   }
 
@@ -477,7 +511,8 @@
   function buildPayload(f) {
     return {
       name: f.name,
-      code: codeOk(f.code) ? f.code : '',
+      code: f.noCode ? '' : (codeOk(f.code) ? f.code : ''),
+      noCode: !!f.noCode,
       color: f.color,
       diameter: f.diameter,
       stars: {
@@ -496,14 +531,14 @@
       name: f.name,
       line1: f.line1,
       line2: f.line2,
-      code: codeOk(f.code) ? f.code : '',
+      code: f.noCode ? '' : (codeOk(f.code) ? f.code : ''),
       color: f.color,
       jitter: p.jitter,
       diameter: f.diameter,
       border: geomFor(f.diameter).border,
       starWidth: geomFor(f.diameter).starWidth,
       nameSize: f.nameSize,
-      arc: p.arc,
+      arc: f.noCode ? 255 : p.arc,
       texture: p.tex,
       fresh: f.fresh,
       px: 1000,
@@ -573,6 +608,9 @@
     if (params.has('preset') && PRESETS[params.get('preset')]) {
       $('preset').value = params.get('preset');
     }
+    if (params.has('noCode') && $('noCode')) {
+      $('noCode').checked = params.get('noCode') === '1' || params.get('noCode') === 'true';
+    }
 
   }
 
@@ -608,6 +646,7 @@
       if (f.line1 !== undefined) $('line1').value = f.line1;
       if (f.line2 !== undefined) $('line2').value = f.line2;
       if (f.code !== undefined) $('code').value = f.code;
+      if ($('noCode')) $('noCode').checked = !!f.noCode;
       if (f.codeSource) codeSource = f.codeSource;
       else if (f.code) codeSource = 'manual';
       if (!f.code) codeSource = 'empty';
@@ -644,7 +683,7 @@
   function fileName(f) {
     const label = (PRESET_LABELS[f.profile] || '印章').split(' · ')[0];
     const tag = f.fresh ? '-实盖扫描' : '';
-    const ph = codeSource === 'auto' ? '-占位编码' : '';
+    const ph = f.noCode ? '-无编码' : (codeSource === 'auto' ? '-占位编码' : '');
     return `${label}-${SealMeta.toSlug(f.name)}-${f.diameter}mm${tag}${ph}.png`;
   }
 
@@ -741,7 +780,7 @@
     if (!PRESETS[requested]) { setState('这个样式在完整版提供'); return; }
     const f = readForm();
     if (!f.name) { setState('先填公司名称'); $('name').focus(); return; }
-    if (!codeOk(f.code)) { updateCodeState(f.code, f.profile); return; }
+    if (!codeOk(f.code, f.noCode)) { updateCodeState(f.code, f.profile, f.noCode); return; }
     if (generating) return;
     const btn = $('generate');
     generating = true;
@@ -775,7 +814,7 @@
     } finally {
       generating = false;
       btn.textContent = '生成印章';
-      btn.disabled = !codeOk($('code').value);
+      btn.disabled = !codeOk($('code').value, !!($('noCode') && $('noCode').checked));
     }
   }
 
@@ -841,9 +880,18 @@
       const clean = $('code').value.replace(/\D/g, '').slice(0, 14);
       if (clean !== $('code').value) $('code').value = clean;
       codeSource = clean ? 'manual' : 'empty';
-      updateCodeState(clean, $('preset').value);
+      updateCodeState(clean, $('preset').value, !!($('noCode') && $('noCode').checked));
       scheduleRender(240);
     });
+
+    if ($('noCode')) {
+      $('noCode').addEventListener('change', () => {
+        const off = $('noCode').checked;
+        render();
+        persist();
+        if (!off && (codeSource === 'auto' || !$('code').value.trim())) applyNameRegion();
+      });
+    }
 
     // 「换号」：按企业名里的行政区划重新拼一个占位号；手填编码要先确认
     $('regenCode').addEventListener('click', () => {
@@ -877,20 +925,23 @@
       const got = extractFromText(text);
       if (!got.name && !got.code && !got.address) return;
       e.preventDefault();
+      const noCode = !!($('noCode') && $('noCode').checked);
       if (got.name) $('name').value = got.name;
       if (got.address) $('address').value = got.address;
-      if (got.code) {
+      if (!noCode && got.code) {
         $('code').value = got.code;
         codeSource = 'manual';
       }
       render();
       persist();
       if (got.name && got.code) rememberCode(got.name, got.code);
-      if (got.code) {
+      if (noCode) {
+        hint('已从粘贴内容识别出企业信息（当前已勾选不刻编码）');
+      } else if (got.code) {
         hint('已从粘贴内容识别出企业名和编码');
       } else if (codeLocked() && $('code').value.trim()) {
         if (!codeOk($('code').value)) {
-          updateCodeState($('code').value, $('preset').value);
+          updateCodeState($('code').value, $('preset').value, false);
         } else {
           hint('已识别企业名；编码栏是手填值，没有覆盖，要占位号请点「随机生成」');
         }
@@ -902,7 +953,7 @@
 
     // 同一企业名再次输入时带出上次填的编码；手填值不覆盖
     $('name').addEventListener('blur', () => {
-      if (codeLocked()) return;
+      if (($('noCode') && $('noCode').checked) || codeLocked()) return;
       const n = $('name').value.trim();
       const c = recallCode(n);
       if (!c) return;
@@ -927,5 +978,5 @@
   showSelected();
   if (SealMeta.loadFont) SealMeta.loadFont('合同专用章财务专用章');
   // 编码为空或还是上次的占位号时，按企业名重算一次；初始示例和手填/记住的编码不动
-  if (codeSource === 'auto' || !$('code').value.trim()) applyNameRegion();
+  if (!($('noCode') && $('noCode').checked) && (codeSource === 'auto' || !$('code').value.trim())) applyNameRegion();
 })();
