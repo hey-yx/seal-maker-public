@@ -616,10 +616,7 @@ img, svg { display: block; max-width: 100%; }
   max-width: var(--canvas-max);
   height: auto;
   aspect-ratio: 1 / 1;
-  transition: opacity var(--dur-base) var(--ease-out);
 }
-
-#preview.is-stale { opacity: 0.45; }
 
 .preview-empty {
   position: absolute;

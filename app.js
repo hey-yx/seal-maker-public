@@ -509,22 +509,6 @@
     markStale(f);
   }
 
-  // 表单指纹：用于判断四张图是否过期。模板和质感不在里面，切卡不算改参数
-  function buildPayload(f) {
-    return {
-      name: f.name,
-      code: f.noCode ? '' : (codeOk(f.code) ? f.code : ''),
-      noCode: !!f.noCode,
-      color: f.color,
-      diameter: f.diameter,
-      stars: {
-        contract: starForProfile('contract') === true,
-        finance: starForProfile('finance') === true
-      },
-      seed: state.seed
-    };
-  }
-
   // 本地渲染参数：模板常量 + 当前表单；预览和下载同一套
   function renderOpts(f) {
     const p = PRESETS[f.profile];
@@ -578,8 +562,18 @@
     });
   }
 
-  function currentSig(f) {
-    return JSON.stringify(buildPayload(f || readForm()));
+  function itemSig(f, profile) {
+    const src = f || readForm();
+    const prof = profile || src.profile || 'contract';
+    return JSON.stringify({
+      name: src.name,
+      code: src.noCode ? '' : (codeOk(src.code) ? src.code : ''),
+      noCode: !!src.noCode,
+      color: src.color,
+      diameter: src.diameter,
+      star: starForProfile(prof) === true,
+      seed: state.seed
+    });
   }
 
   function keyOf(opt) {
@@ -592,10 +586,12 @@
 
   function markStale(f) {
     if (!lastSet) return;
-    const stale = currentSig(f) !== lastSet.sig;
+    const cur = f || readForm();
+    const item = lastSet.items[currentKey()];
+    const stale = !item || itemSig(cur, cur.profile) !== item.sig;
     $('preview').classList.toggle('is-stale', stale);
     $('previewStale').hidden = !stale;
-    $('download').disabled = stale || !lastSet.items[currentKey()];
+    $('download').disabled = stale || !item;
   }
 
   function syncFromUrl() {
@@ -768,9 +764,9 @@
         if (!img.dataset.staticSrc) img.dataset.staticSrc = img.getAttribute('src');
         img.src = url;
       }
-      map[item.key] = { blob: item.blob, url, name: fileName(item.f) };
+      map[item.key] = { blob: item.blob, url, sig: itemSig(f, item.f.profile), name: fileName(item.f) };
     }
-    lastSet = { items: map, sig: currentSig(f) };
+    lastSet = { items: map };
     $('preview').classList.remove('is-stale');
     $('previewStale').hidden = true;
     $('download').disabled = false;
