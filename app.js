@@ -5,15 +5,15 @@
   const meta = $('meta');
 
   const PRESETS = {
-    contract: { px: 1000, tex: 0, diameter: 42, nameSize: 6.5, arc: 245, color: '#DA251D', jitter: 0, star: false, line1: '合同专用章', line2: '', lineSize: 4.9, edgeAmp: 0.01, nicks: 0, specks: 0 },
-    finance: { px: 1000, tex: 0, diameter: 42, nameSize: 6.5, arc: 245, color: '#DA251D', jitter: 0, star: false, line1: '财务专用章', line2: '', lineSize: 4.9, edgeAmp: 0.01, nicks: 0, specks: 0 }
+    contract: { px: 1000, tex: 0, diameter: 42, nameSize: 7.35, arc: 242, color: '#DA251D', jitter: 0, star: false, line1: '合同专用章', line2: '', lineSize: 6.7, edgeAmp: 0.01, nicks: 0, specks: 0 },
+    finance: { px: 1000, tex: 0, diameter: 42, nameSize: 7.35, arc: 242, color: '#DA251D', jitter: 0, star: false, line1: '财务专用章', line2: '', lineSize: 6.7, edgeAmp: 0.01, nicks: 0, specks: 0 }
   };
 
-  // 直径 → 国标几何（DB11/T 918-2021 6.2.1）：42mm 边宽 1.2、五角星 14；
-  // 40mm 边宽 1.1、五角星 13。名称字高 6.5 和环排角度两种直径共用。
+  // 直径 → 国标几何（DB11/T 918-2021 / DB4403）：42mm 边宽 1.2、五角星 14；
+  // 40mm 边宽 1.1、五角星 13。
   const GEOMETRY = {
-    42: { border: 1.185, starWidth: 14.2 },
-    40: { border: 1.1, starWidth: 13 }
+    42: { border: 1.185, starWidth: 14.1, nameSize: 7.35 },
+    40: { border: 1.1, starWidth: 13.0, nameSize: 6.95 }
   };
   const geomFor = (d) => GEOMETRY[d] || GEOMETRY[42];
 
@@ -365,6 +365,8 @@
   function readForm() {
     const profile = PRESETS[$('preset').value] ? $('preset').value : 'contract';
     const p = PRESETS[profile];
+    const dia = +$('diameter').value === 40 ? 40 : 42;
+    const g = geomFor(dia);
     return {
       name: $('name').value.trim(),
       address: $('address').value.trim(),
@@ -374,8 +376,8 @@
       code: $('code').value.replace(/\D/g, '').slice(0, 14),
       noCode: !!($('noCode') && $('noCode').checked),
       fresh: $('look').value === 'fresh',
-      diameter: +$('diameter').value === 40 ? 40 : 42,
-      nameSize: p.nameSize,
+      diameter: dia,
+      nameSize: g.nameSize || p.nameSize,
       arc: p.arc,
       star: starForProfile(profile),
       texture: p.tex,
@@ -412,7 +414,7 @@
   function updateNameState(f, fromFontLoad) {
     const el = $('nameHint');
     if (!el) return;
-    const arc = f.noCode ? 255 : (f.arc || 260);
+    const arc = f.noCode ? 248 : (f.arc || 242);
     const m = SealMeta.nameFit({
       name: f.name, nameSize: f.nameSize, arc, border: geomFor(f.diameter).border,
       diameter: f.diameter, noCode: !!f.noCode, line1: f.line1
@@ -501,7 +503,7 @@
       return span;
     }));
     const note = $('sizeNote');
-    if (note) note.textContent = `名称字高 6.5\u00A0mm、离内边 0.95\u00A0mm 固定；合同章和财务章中心有章名，名称最多 245°，字距按名称长度在 1.35～2.6\u00A0mm 之间调节。括号按墨宽排版，仍放不下才压窄字形、缩字高。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
+    if (note) note.textContent = `传统印刷宋体（42\u00A0mm 章字高 7.35\u00A0mm、40\u00A0mm 章 6.95\u00A0mm），字缘距内边约 1.15\u00A0mm；合同和财务章中心字高约 6.7\u00A0mm，外环最多 242°（不刻编码最多 248°）。括号按墨宽成组排版，优先保持标准字高并收字距、压窄。下载的 PNG 是一枚 ${f.diameter}\u00A0mm 章，插进文档按 ${(f.diameter / 10).toFixed(1)}\u00A0cm 放。`;
     updateNameState(f);
     updateCodeState(f.code, f.profile, f.noCode);
     markStale(f);
@@ -538,7 +540,7 @@
       border: geomFor(f.diameter).border,
       starWidth: geomFor(f.diameter).starWidth,
       nameSize: f.nameSize,
-      arc: f.noCode ? 255 : p.arc,
+      arc: f.noCode ? 248 : p.arc,
       texture: p.tex,
       fresh: f.fresh,
       px: 1000,
@@ -798,7 +800,7 @@
           profile: style.profile,
           fresh: style.fresh,
           star: starForProfile(style.profile),
-          nameSize: PRESETS[style.profile].nameSize,
+          nameSize: geomFor(f.diameter).nameSize || PRESETS[style.profile].nameSize,
           arc: PRESETS[style.profile].arc,
           texture: PRESETS[style.profile].tex
         });

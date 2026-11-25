@@ -65,11 +65,12 @@
     ctx.font = `${weight || 700} ${fontPx}px ${fontFamily || FONT_SONG}`;
     // cells 由 nameLayout 按每个字的墨迹宽度算好：括号只占自己的墨宽，
     // 每个字还可以有独立的横向比例和墨心偏移。没给才退回按字身宽均分。
-    let widths, sxs, dxs, gapList, cursor;
+    let widths, sxs, dxs, dys, gapList, cursor;
     if (fix && fix.cells) {
       widths = fix.cells.map((c) => c.w);
       sxs = fix.cells.map((c) => (c.sx == null ? 1 : c.sx));
       dxs = fix.cells.map((c) => c.dx || 0);
+      dys = fix.cells.map((c) => c.dy || 0);
       gapList = fix.gaps || [];
       const total = widths.reduce((a, w, i) => a + w * sxs[i], 0)
         + gapList.reduce((a, b) => a + b, 0);
@@ -93,6 +94,10 @@
       widths = chars.map((c) => ctx.measureText(c).width || fontPx);
       sxs = chars.map(() => sx);
       dxs = chars.map(() => 0);
+      dys = chars.map((c) => {
+        const m = ctx.measureText(c);
+        return ((m.actualBoundingBoxAscent || 0) - (m.actualBoundingBoxDescent || 0)) / 2;
+      });
       gapList = chars.map(() => gapPx);
       cursor = fix ? Math.max(0, (arcLen - (widths.reduce((a, w, i) => a + w * sxs[i], 0)
         + gapPx * (chars.length - 1))) / 2) : 0;
@@ -115,13 +120,19 @@
       ctx.translate(x, y);
       ctx.rotate((rot * Math.PI) / 180);
       if (sxs[i] !== 1) ctx.scale(sxs[i], 1);
-      // 墨心对齐字格中心：全角括号在字身框里偏右/偏左，抵掉偏移才不会挤到一侧
-      ctx.fillText(chars[i], -dxs[i], 0);
+      // 墨心对齐字格中心：同时抵消水平偏移与字库基线垂直偏移（适配 FandolSong / Noto Serif SC）
+      const mCh = dys[i] ? { dy: dys[i] } : (() => {
+        const m = ctx.measureText(chars[i]);
+        return { dy: ((m.actualBoundingBoxAscent || 0) - (m.actualBoundingBoxDescent || 0)) / 2 };
+      })();
+      const dy = mCh.dy;
+      ctx.fillText(chars[i], -dxs[i], dy);
       if (strokePx > 0) {
         ctx.lineWidth = strokePx;
-        ctx.lineJoin = 'round';
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 2;
         ctx.strokeStyle = ctx.fillStyle;   // 描边跟着墨色，别用画布默认黑
-        ctx.strokeText(chars[i], -dxs[i], 0);
+        ctx.strokeText(chars[i], -dxs[i], dy);
       }
       ctx.restore();
     }
@@ -243,15 +254,22 @@
       ctx.putImageData(hard, 0, 0);
     }
 
-    // 硬边之后再做一次轻微墨洇，避免像纯二值图
+    // 硬边之后再做一次轻微墨洇，避免像纯二值图（若运行环境不支持 filter 导致空画布则跳过）
     try {
       const tmp = document.createElement('canvas');
       tmp.width = tmp.height = size;
       const tctx = tmp.getContext('2d');
       tctx.filter = 'blur(0.45px)';
       tctx.drawImage(ctx.canvas, 0, 0);
-      ctx.clearRect(0, 0, size, size);
-      ctx.drawImage(tmp, 0, 0);
+      const td = tctx.getImageData(0, 0, size, size).data;
+      let hasInk = false;
+      for (let i = 3; i < td.length; i += 64) {
+        if (td[i] > 0) { hasInk = true; break; }
+      }
+      if (hasInk) {
+        ctx.clearRect(0, 0, size, size);
+        ctx.drawImage(tmp, 0, 0);
+      }
     } catch (e) { /* 忽略 */ }
   }
 
@@ -293,7 +311,7 @@
       nicks: 0,
       edgeAmp: 0.012,
       nameWeight: SEAL_WEIGHT,
-      nameStroke: 0.015,
+      nameStroke: 0.025,
       jitter: 0,
       color: o.color || '#DA251D',
       rotation: (o.tilt !== undefined ? o.tilt : 0),
@@ -345,7 +363,7 @@
     const thinCenter = 138 + ((seed * 3) % 8);
     const thinSpan = 36;
     const scale = srcN / N;
-    const THR = 0.47;
+    const THR = 0.43;
     // 墨色跟随用户选的标准色，不能再写死纯红
     const hexE = /^#?([0-9a-f]{6})$/i.exec(o.color || '#DA251D');
     const ER = hexE ? parseInt(hexE[1].slice(0, 2), 16) : 218;
@@ -585,7 +603,7 @@
           if (nzGate(pv) > noiseAt(nVoidA, nVoidB, x, y)) continue;
 
           const rr = Math.sqrt(xx * xx + yy * yy) / mm;
-          if (rr > 19.3 && d0 > 2) continue;               // 外环最多 2px，保闭合
+          if (rr > Rmm - o.border - 0.5 && d0 > 2) continue;               // 外环最多 2px，保闭合（按实际直径算）
           if (rr >= codeR0 && rr <= codeR1) {
             const ang2 = (Math.atan2(-yy, xx) * 180 / Math.PI + 360) % 360;
             if (ang2 > 225 && ang2 < 315) {
@@ -935,17 +953,18 @@
       code: '',
       diameter: 42,
       border: 1.185,
-      nameSize: 6.5,
+      nameSize: 7.35,
       nameWeight: SEAL_WEIGHT,
-      nameStroke: 0.025,
+      nameStroke: 0,
       lineWeight: SEAL_WEIGHT,
-      arc: 270,
-      starWidth: 14.2,
+      arc: 274,
+      starWidth: 14.1,
       star: true,
-      lineSize: 5.8,
-      codeSize: 1.365,
+      lineSize: 6.7,
+      codeSize: 1.30,
       codeWeight: 700,
-      codeSoft: 0.6,
+      codeStrokeMm: 0.045,
+      codeSoft: 0,
       codeStart: 205,
       codeSpan: 45,
       color: '#DA251D',
@@ -1037,63 +1056,90 @@
     const chars = Array.from(o.name || '');
     // 弧长以 nameLayout 算出来的为准（它按编码带留白推），不要用 o.arc 原值，
     // 否则算的时候是 256°、画的时候还是 250°，首末字与编码的空隙就对不齐
+    const diaScale = o.diameter / 42;
     let arcDeg = o.arc || 250;
     let nameR = R - o.border - 0.9 - o.nameSize / 2;
     let usedNameSize = o.nameSize;
+    const baseNameStroke = o.nameStroke || 0;
     if (chars.length) {
       const lay = nameLayout(Object.assign({}, o, { fontFamily: FONT_SONG }));
       usedNameSize = lay.size;
       nameR = lay.r;
       arcDeg = lay.arcDeg;
-      const namePx = (lay.size / 0.88) * s;
+      const namePx = (lay.size / 0.96) * s;
+      // 描边随字号按比例缩放，防止实盖扫描模式下长名称小字笔画粘连
+      const effNameStroke = baseNameStroke * Math.min(1, Math.max(0.45, usedNameSize / (7.15 * diaScale)));
       if (lay.glyphs) {
         drawArcText(ctx, o.name, cx, cy, nameR * s, namePx,
-          90 + arcDeg / 2, -arcDeg, o.nameWeight || SEAL_WEIGHT, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
+          90 + arcDeg / 2, -arcDeg, o.nameWeight || SEAL_WEIGHT, FONT_SONG, false, 0, effNameStroke * s, o.seed + 5, o.jitter || 0,
           {
-            cells: lay.glyphs.map((g) => ({ w: g.w * s, dx: g.dx * s, sx: g.sx })),
+            cells: lay.glyphs.map((g) => ({ w: g.w * s, dx: g.dx * s, dy: (g.dy || 0) * s, sx: g.sx })),
             gaps: lay.gaps.map((g) => g * s),
           });
       } else {
         const gapPx = lay.gapMm * s;
         drawArcText(ctx, o.name, cx, cy, nameR * s, namePx,
-          90 + arcDeg / 2, -arcDeg, o.nameWeight || SEAL_WEIGHT, FONT_SONG, false, 0, (o.nameStroke || 0) * s, o.seed + 5, o.jitter || 0,
+          90 + arcDeg / 2, -arcDeg, o.nameWeight || SEAL_WEIGHT, FONT_SONG, false, 0, effNameStroke * s, o.seed + 5, o.jitter || 0,
           { sx: lay.sx, gapPx });
       }
     }
 
-    // 五角星
-    if (o.star !== false) drawStar(ctx, cx, cy - 0.5 * s, o.starWidth, s, o.seed + 3, o.jitter || 0);
+    // 五角星：两行章上移 1.8mm 留出双行字空间；单行带星专用章上移 1.4mm；普通公章下沉 0.34mm 对齐 DB4403
+    const hasTwoLines = !!(o.line1 && o.line2);
+    const starLift = hasTwoLines ? 1.8 * diaScale : ((o.line1 || o.line2) ? 1.4 * diaScale : -0.34 * diaScale);
+    if (o.star !== false) drawStar(ctx, cx, cy - starLift * s, o.starWidth, s, o.seed + 3, o.jitter || 0);
 
-    // 公开版只画一行章名：合同专用章 / 财务专用章。两行布局在公开核心中不实现。
-    // 带星和不带星用同一个位置；无编码时底部留空多，章名下移到 12.2 mm
-    const lineY = o.lineY1 || (!o.code ? 12.2 : 10.3);
-    if (o.line1) {
-      const lineSize = Math.min(o.lineSize, usedNameSize * 1.05);
-      const linePx = (lineSize / 0.88) * s;
+    // 星下文字：单行专用章对齐 DB4403（高约 6.7mm、宽约 22.4mm）；两行章字高提升至 5.0mm 并按弦长与内弧自适应限宽
+    const singleLineY = (!o.code ? 10.6 : 10.1) * diaScale;
+    const twoLineY1 = 8.0 * diaScale;
+    const twoLineY2 = (!o.code ? 13.9 : 13.3) * diaScale;
+    const lines = hasTwoLines
+      ? [{ text: o.line1, y: o.lineY1 || twoLineY1 }, { text: o.line2, y: o.lineY2 || twoLineY2 }]
+      : [{ text: o.line1 || o.line2 || '', y: o.lineY1 || singleLineY }];
+    const arcDropRad = Math.max(0, (arcDeg - 180) / 2) * (Math.PI / 180);
+    const arcInnerR = nameR - usedNameSize / 2 - 1.0;
+    const arcBottomY = arcInnerR * Math.sin(arcDropRad);
+    lines.forEach((ln) => {
+      if (!ln.text) return;
+      const cap = hasTwoLines ? 5.0 * diaScale : (o.lineSize || 6.7) * diaScale;
+      const lineSize = Math.min((o.lineSize || 6.7) * diaScale, usedNameSize * 0.94, cap);
+      const linePx = (lineSize / 0.96) * s;
       ctx.save();
       ctx.font = `${o.lineWeight || SEAL_WEIGHT} ${linePx}px ${FONT_SONG}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const maxW = 22 * s;
-      const w = ctx.measureText(o.line1).width;
-      const k = w > maxW ? maxW / w : 1;
-      ctx.translate(cx, cy + lineY * s);
+      const yOuter = ln.y + lineSize / 2;
+      const safeR = R - o.border - 1.2;
+      const chordW = yOuter < safeR ? 2 * Math.sqrt(safeR * safeR - yOuter * yOuter) : 8;
+      const yTop = ln.y - lineSize / 2;
+      let arcClearW = 24 * diaScale;
+      if (arcDeg > 180 && yTop < arcBottomY + 0.6 && yTop > -arcInnerR) {
+        arcClearW = 2 * Math.sqrt(Math.max(16, arcInnerR * arcInnerR - yTop * yTop));
+      }
+      const maxWMm = Math.max(8, Math.min((hasTwoLines ? 21.0 : 23.2) * diaScale, chordW, arcClearW));
+      const maxW = maxWMm * s;
+      const w = ctx.measureText(ln.text).width || 1;
+      const k = Math.min(hasTwoLines ? 0.68 : 0.76, maxW / w);
+      const lm = ctx.measureText(ln.text);
+      const ldy = ((lm.actualBoundingBoxAscent || 0) - (lm.actualBoundingBoxDescent || 0)) / 2;
+      ctx.translate(cx, cy + ln.y * s);
       ctx.scale(k, 1);
-      ctx.fillText(o.line1, 0, 0);
+      ctx.fillText(ln.text, 0, ldy);
       if (o.nameStroke > 0) {
-        ctx.lineWidth = o.nameStroke * s;
-        ctx.lineJoin = 'round';
-        ctx.strokeText(o.line1, 0, 0);
+        ctx.lineWidth = (o.nameStroke * Math.min(1, Math.max(0.45, lineSize / (7.15 * diaScale)))) * s;
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 2;
+        ctx.strokeText(ln.text, 0, ldy);
       }
       ctx.restore();
-    }
+    });
 
-    // 编码：章面正下方沿弧排列，Arial，字高 1.5mm、字距 2mm、距内边 0.6mm
+    // 编码：章面正下方沿弧排列，Arial Bold，字高 1.30mm、中心步距 1.92mm、距内边 0.88mm（对齐 DB11/DB4403 官方案例）
     if (o.code) {
       const digits = Array.from(o.code).slice(0, 16).join('');
       const codePx = (o.codeSize / 0.72) * s;
-      const codeR = R - o.border - 0.6 - o.codeSize / 2;
-      const stepDeg = (2.0 / codeR) * (180 / Math.PI);
+      const codeR = R - o.border - 0.88 - o.codeSize / 2;
+      const stepDeg = (1.82 / codeR) * (180 / Math.PI);
       const span = stepDeg * Math.max(digits.length - 1, 0);
       // codeCenter 270 = 正下方；180 = 左侧竖排（照实物章：编码在左边）
       const codeCenter = o.codeCenter === undefined ? 270 : o.codeCenter;
@@ -1127,9 +1173,9 @@
         sctx.restore();
       }
       ctx.save();
-      const codeBlur = (o.codeSoft === undefined ? 0.6 : o.codeSoft) * (N / 1000);
+      const codeBlur = (o.codeSoft === undefined ? 0 : o.codeSoft) * (N / 1000);
       if (codeBlur > 0) ctx.filter = `blur(${codeBlur}px)`;
-      ctx.globalAlpha = 0.93;
+      ctx.globalAlpha = codeBlur > 0 ? 0.93 : 1;
       ctx.drawImage(soft, 0, 0);
       ctx.restore();
     }
@@ -1140,7 +1186,7 @@
     for (let i = 0; i < (o.specks || 0); i++) {
       const a = rndSpeck() * Math.PI * 2;
       const outside = rndSpeck() < 0.7;
-      const rr = outside ? (20.9 + rndSpeck() * 0.6) : (18.9 + rndSpeck() * 0.7);
+      const rr = outside ? (R - 0.1 + rndSpeck() * 0.6) : (R - o.border - 0.9 + rndSpeck() * 0.7);
       const rad = (0.06 + rndSpeck() * 0.16) * s;
       ctx.globalAlpha = 0.25 + rndSpeck() * 0.5;
       ctx.beginPath();
@@ -1309,37 +1355,5 @@
     });
   }
 
-  // 公开版只暴露合同专用章和财务专用章；布局参数在入口处锁定，调用方改不了。
-  const rawRender = render;
-  const LITE = {
-    contract: { line1: '合同专用章', arc: 245, nameSize: 6.5, lineSize: 4.9 },
-    finance: { line1: '财务专用章', arc: 245, nameSize: 6.5, lineSize: 4.9 }
-  };
-
-  function renderLite(canvas, opts) {
-    const profile = opts && opts.profile;
-    const preset = LITE[profile];
-    if (!preset) throw new Error('public build only supports contract and finance');
-    const diameter = opts.diameter === 40 ? 40 : 42;
-    const border = diameter === 40 ? 1.1 : 1.2;
-    const starWidth = diameter === 40 ? 13 : 14;
-    return rawRender(canvas, Object.assign({}, opts, {
-      profile,
-      line1: preset.line1,
-      line2: '',
-      arc: preset.arc,
-      nameSize: preset.nameSize,
-      lineSize: preset.lineSize,
-      diameter,
-      border,
-      starWidth,
-      jitter: 0,
-      texture: 0,
-      edgeAmp: 0.01,
-      nicks: 0,
-      specks: 0
-    }));
-  }
-
-  global.Seal = { render: renderLite, toPngBlob, toSlug, nameFit, SIZE, PXMM };
+  global.Seal = { render, renderPaper, download, toPngBlob, toSlug, nameFit, SIZE, PXMM };
 })(window);

@@ -1,0 +1,7 @@
+@font-face {
+  font-family: 'FandolSong';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./FandolSong-Bold.otf) format('opentype');
+}
